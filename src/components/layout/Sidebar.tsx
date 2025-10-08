@@ -5,7 +5,6 @@ import {
   BookOutlined,
   PartitionOutlined,
   MenuFoldOutlined,
-  UserOutlined,
 } from "@ant-design/icons";
 
 // 定义按钮类型
@@ -52,7 +51,6 @@ interface SidebarButtonProps {
 }
 
 const SidebarButton: React.FC<SidebarButtonProps> = ({
-  type,
   icon,
   label,
   isActive,

@@ -17,6 +17,9 @@ importers:
       axios:
         specifier: ^1.12.2
         version: 1.12.2
+      openai:
+        specifier: ^6.2.0
+        version: 6.2.0
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -1629,6 +1632,18 @@ packages:
   normalize-range@0.1.2:
     resolution: {integrity: sha512-bdok/XvKII3nUpklnV6P2hxtMNrCboOjAcyBuQnWEhO665FwrSNRxU+AqpsyvO6LgGYPspN+lu5CLtw4jPRKNA==}
     engines: {node: '>=0.10.0'}
+
+  openai@6.2.0:
+    resolution: {integrity: sha512-qqjzHls7F5xkXNGy9P1Ei1rorI5LWupUUFWP66zPU8FlZbiITX8SFcHMKNZg/NATJ0LpIZcMUFxSwQmdeQPwSw==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -3915,6 +3930,8 @@ snapshots:
   node-releases@2.0.23: {}
 
   normalize-range@0.1.2: {}
+
+  openai@6.2.0: {}
 
   optionator@0.9.4:
     dependencies:
