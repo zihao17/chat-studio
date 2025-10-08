@@ -65,7 +65,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
       : isActive
       ? BUTTON_STYLES.active
       : BUTTON_STYLES.inactive
-  }`;
+  } max-lg:justify-center max-lg:px-2`;
 
   const iconColor = isNewChat ? "rgb(0, 87, 255)" : undefined;
 
@@ -74,11 +74,14 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
       onClick={onClick}
       className={buttonClasses}
       style={isNewChat ? { color: "rgb(0, 87, 255)" } : {}}
+      title={label} // 添加 tooltip 提示
     >
-      <span className="mr-3" style={iconColor ? { color: iconColor } : {}}>
+      <span className="max-lg:mr-0 mr-3" style={iconColor ? { color: iconColor } : {}}>
         {icon}
       </span>
-      <span className={isActive || isNewChat ? "font-bold" : ""}>{label}</span>
+      <span className={`${isActive || isNewChat ? "font-bold" : ""} max-lg:hidden`}>
+        {label}
+      </span>
     </button>
   );
 };

@@ -1,5 +1,6 @@
 import React from 'react'
 import Sidebar from './Sidebar'
+import Header from './Header'
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -17,7 +18,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       
       {/* 主内容区域 */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {children}
+        {/* 头部 */}
+        <Header />
+        
+        {/* 聊天内容区域 */}
+        <div className="flex-1 overflow-hidden">
+          {children}
+        </div>
       </div>
     </div>
   )
