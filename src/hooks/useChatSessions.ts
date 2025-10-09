@@ -78,7 +78,9 @@ export const useChatSessions = () => {
     };
 
     setSessions(prev => {
-      const updated = [newSession, ...prev];
+      // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+      const prevSessions = Array.isArray(prev) ? prev : [];
+      const updated = [newSession, ...prevSessions];
       debouncedSave(updated, newSession.id);
       return updated;
     });
@@ -99,7 +101,9 @@ export const useChatSessions = () => {
   // 删除会话
   const deleteSession = useCallback((sessionId: string) => {
     setSessions(prev => {
-      const updated = prev.filter(s => s.id !== sessionId);
+      // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+      const prevSessions = Array.isArray(prev) ? prev : [];
+      const updated = prevSessions.filter(s => s.id !== sessionId);
       
       // 如果删除的是当前会话，需要切换到其他会话
       if (sessionId === currentSessionId) {
@@ -117,7 +121,9 @@ export const useChatSessions = () => {
   // 更新会话标题
   const updateSessionTitle = useCallback((sessionId: string, title: string) => {
     setSessions(prev => {
-      const updated = prev.map(session => 
+      // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+      const prevSessions = Array.isArray(prev) ? prev : [];
+      const updated = prevSessions.map(session => 
         session.id === sessionId 
           ? { ...session, title, updatedAt: Date.now() }
           : session
@@ -136,7 +142,9 @@ export const useChatSessions = () => {
     };
 
     setSessions(prev => {
-      const updated = prev.map(session => {
+      // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+      const prevSessions = Array.isArray(prev) ? prev : [];
+      const updated = prevSessions.map(session => {
         if (session.id === sessionId) {
           const updatedMessages = [...session.messages, newMessage];
           return {
@@ -157,7 +165,9 @@ export const useChatSessions = () => {
   // 更新消息
   const updateMessage = useCallback((sessionId: string, messageId: string, updates: Partial<Message>) => {
     setSessions(prev => {
-      const updated = prev.map(session => {
+      // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+      const prevSessions = Array.isArray(prev) ? prev : [];
+      const updated = prevSessions.map(session => {
         if (session.id === sessionId) {
           const updatedMessages = session.messages.map(msg =>
             msg.id === messageId ? { ...msg, ...updates } : msg
