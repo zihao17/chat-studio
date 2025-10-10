@@ -13,6 +13,12 @@
 
 **Chat Studio：** 一个开源的 AI 对话平台，支持多会话并发、知识库增强与自动化工作流。前端基于 React + TypeScript 构建，后端采用 Node.js。
 
+## Chat Studio - Frontend Only (Backup) 纯前端备份
+
+- 此分支（`backup-frontend-only`）保留了项目的初始状态：
+- 一个**独立的 React + Vite 前端**，尚未集成任何后端服务。
+- 用于在引入 Express 服务与 API 迁移前的干净快照。
+
 ## 技术栈
 
 - **前端**: React 19 + TypeScript + Vite

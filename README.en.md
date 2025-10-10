@@ -13,6 +13,12 @@
 
 **Chat Studio：** An open-source AI conversation platform supporting multi-session concurrency, knowledge base enhancement, and automated workflows. Built with React + TypeScript frontend and Node.js backend.
 
+# Chat Studio - Frontend Only (Backup)
+
+- This branch (`backup-frontend-only`) preserves the initial state of the project:
+- a **standalone React + Vite frontend** without any backend integration.
+- It serves as a clean snapshot before introducing the Express server and API migration.
+
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite
