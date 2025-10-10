@@ -8,7 +8,7 @@
 </div>
 
 <div align="center">
-  <img src="./public/images/Chat-Studio.png" alt="Chat Studio" width="1000" />
+  <img src="./client/public/images/Chat-Studio.png" alt="Chat Studio" width="1000" />
 </div>
 
 **Chat Studio：** 一个开源的 AI 对话平台，支持多会话并发、知识库增强与自动化工作流。前端基于 React + TypeScript 构建，后端采用 Node.js。

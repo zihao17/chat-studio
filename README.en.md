@@ -8,7 +8,7 @@
 </div>
 
 <div align="center">
-  <img src="./public/images/Chat-Studio.png" alt="Chat Studio" width="1000" />
+  <img src="./client/public/images/Chat-Studio.png" alt="Chat Studio" width="1000" />
 </div>
 
 **Chat Studio：** An open-source AI conversation platform supporting multi-session concurrency, knowledge base enhancement, and automated workflows. Built with React + TypeScript frontend and Node.js backend.
