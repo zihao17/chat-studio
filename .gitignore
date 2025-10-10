@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+pzh
 steps
 node_modules
 dist
@@ -19,8 +20,8 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
+.trae/*
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.trae/*

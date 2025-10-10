@@ -18,6 +18,7 @@ export interface ChatSession {
   messages: Message[];
   createdAt: number;
   updatedAt: number;
+  isLoading?: boolean; // 每个会话独立的加载状态
 }
 
 // 会话状态管理接口
@@ -30,32 +31,40 @@ export interface ChatContextType {
   currentSession: ChatSession | null;
   // 是否正在加载AI回复
   isAILoading: boolean;
-  
+
   // 会话管理方法
   createNewSession: () => ChatSession;
   switchToSession: (sessionId: string) => void;
   deleteSession: (sessionId: string) => void;
   updateSessionTitle: (sessionId: string, title: string) => void;
-  
+
   // 消息管理方法
-  addMessage: (sessionId: string, message: Omit<Message, 'id' | 'timestamp'>) => void;
-  updateMessage: (sessionId: string, messageId: string, updates: Partial<Message>) => void;
-  
+  addMessage: (
+    sessionId: string,
+    message: Omit<Message, "id" | "timestamp">
+  ) => void;
+  updateMessage: (
+    sessionId: string,
+    messageId: string,
+    updates: Partial<Message>
+  ) => void;
+
   // AI交互方法
   sendMessage: (content: string) => Promise<void>;
-  
+
   // 智能新对话逻辑
   handleNewChat: () => void;
 }
 
 // 本地存储键名常量
 export const STORAGE_KEYS = {
-  CHAT_SESSIONS: 'chat-studio-sessions',
-  CURRENT_SESSION_ID: 'chat-studio-current-session-id',
+  CHAT_SESSIONS: "chat-studio-sessions",
+  CURRENT_SESSION_ID: "chat-studio-current-session-id",
 } as const;
 
 // 默认欢迎消息
-export const DEFAULT_WELCOME_MESSAGE = "你好！我是 Chat Studio AI 助手，有什么可以帮助您的吗？";
+export const DEFAULT_WELCOME_MESSAGE =
+  "你好！我是 Chat Studio AI 助手，有什么可以帮助您的吗？";
 
 // 生成唯一ID的工具函数
 export const generateId = (): string => {
@@ -70,5 +79,8 @@ export const generateMessageId = (): string => {
 // 截取标题的工具函数（取用户消息前8字）
 export const generateSessionTitle = (firstUserMessage: string): string => {
   if (!firstUserMessage.trim()) return "新对话";
-  return firstUserMessage.trim().slice(0, 8) + (firstUserMessage.length > 8 ? "..." : "");
+  return (
+    firstUserMessage.trim().slice(0, 10) +
+    (firstUserMessage.length > 10 ? "..." : "")
+  );
 };

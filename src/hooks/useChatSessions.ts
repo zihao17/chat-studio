@@ -17,13 +17,16 @@ import { callAIChat, type ChatMessage } from '../utils/aiApi';
 export const useChatSessions = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [isAILoading, setIsAILoading] = useState(false);
+  // 移除全局 isAILoading 状态，改为使用会话级别的状态
   
   // 防抖保存的引用
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
 
   // 获取当前活跃会话
   const currentSession = sessions.find(session => session.id === currentSessionId) || null;
+
+  // 获取当前会话的加载状态
+  const isAILoading = currentSession?.isLoading || false;
 
   // 防抖保存到localStorage
   const debouncedSave = useCallback((sessionsToSave: ChatSession[], currentId: string | null) => {
@@ -42,6 +45,20 @@ export const useChatSessions = () => {
       }
     }, 500);
   }, []);
+
+  // 设置指定会话的加载状态
+  const setSessionLoading = useCallback((sessionId: string, loading: boolean) => {
+    setSessions(prev => {
+      const prevSessions = Array.isArray(prev) ? prev : [];
+      const updated = prevSessions.map(session => 
+        session.id === sessionId 
+          ? { ...session, isLoading: loading, updatedAt: Date.now() }
+          : session
+      );
+      debouncedSave(updated, currentSessionId);
+      return updated;
+    });
+  }, [currentSessionId, debouncedSave]);
 
   // 从localStorage加载数据
   const loadFromStorage = useCallback(() => {
@@ -207,7 +224,8 @@ export const useChatSessions = () => {
       isLoading: true,
     });
 
-    setIsAILoading(true);
+    // 设置当前会话的加载状态
+    setSessionLoading(currentSessionId, true);
 
     try {
       // 准备发送给AI的消息历史
@@ -246,9 +264,10 @@ export const useChatSessions = () => {
         isLoading: false,
       });
     } finally {
-      setIsAILoading(false);
+      // 清除当前会话的加载状态
+      setSessionLoading(currentSessionId, false);
     }
-  }, [currentSessionId, isAILoading, sessions, addMessage, updateSessionTitle, updateMessage]);
+  }, [currentSessionId, isAILoading, sessions, addMessage, updateSessionTitle, updateMessage, setSessionLoading]);
 
   // 智能新对话逻辑
   const handleNewChat = useCallback(() => {
