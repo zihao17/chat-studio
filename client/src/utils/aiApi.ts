@@ -41,12 +41,14 @@ function handleStreamError(error: unknown): string {
  * @param onChunk 接收到数据块时的回调
  * @param onError 错误处理回调
  * @param model 使用的模型
+ * @param abortController 用于中断请求的控制器
  */
 export async function callAIChatStream(
   messages: ChatMessage[],
   onChunk: (chunk: string) => void,
   onError?: (error: string) => void,
-  model: string = "qwen-max"
+  model: string = "qwen-max",
+  abortController?: AbortController
 ): Promise<void> {
   try {
     // 调用本地后端代理接口（流式）
@@ -62,6 +64,7 @@ export async function callAIChatStream(
         temperature: 0.7,
         max_tokens: 8000, // 增加 max_tokens 以支持更长的回复
       }),
+      signal: abortController?.signal, // 添加中断信号
     });
 
     if (!response.ok) {
@@ -116,6 +119,12 @@ export async function callAIChatStream(
       }
     }
   } catch (error) {
+    // 检查是否为中断错误
+    if (error instanceof Error && error.name === 'AbortError') {
+      // 中断请求不需要显示错误信息
+      return;
+    }
+    
     const errorMsg = handleStreamError(error);
     if (onError) {
       onError(errorMsg);

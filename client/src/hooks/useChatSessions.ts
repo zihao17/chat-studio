@@ -17,7 +17,8 @@ import { callAIChatStream, type ChatMessage } from '../utils/aiApi';
 export const useChatSessions = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  // 移除全局 isAILoading 状态，改为使用会话级别的状态
+  // 存储每个会话的AbortController，用于中断流式响应
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   
   // 防抖保存的引用
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -27,6 +28,36 @@ export const useChatSessions = () => {
 
   // 获取当前会话的加载状态
   const isAILoading = currentSession?.isLoading || false;
+
+  // 获取指定会话的生成状态
+  const isSessionGenerating = useCallback((sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    return session?.isLoading || false;
+  }, [sessions]);
+
+  // 停止指定会话的生成
+  const stopGeneration = useCallback((sessionId: string) => {
+    const abortController = abortControllersRef.current.get(sessionId);
+    if (abortController) {
+      abortController.abort();
+      abortControllersRef.current.delete(sessionId);
+      
+      // 立即清除会话的加载状态
+      setSessionLoading(sessionId, false);
+      
+      // 查找并更新正在加载的消息
+      const session = sessions.find(s => s.id === sessionId);
+      if (session) {
+        const loadingMessage = session.messages.find(m => m.isLoading);
+        if (loadingMessage) {
+          updateMessage(sessionId, loadingMessage.id, {
+            content: loadingMessage.content + "\n\n[生成已停止]",
+            isLoading: false,
+          });
+        }
+      }
+    }
+  }, [sessions]);
 
   // 防抖保存到localStorage
   const debouncedSave = useCallback((sessionsToSave: ChatSession[], currentId: string | null) => {
@@ -227,6 +258,10 @@ export const useChatSessions = () => {
     // 设置当前会话的加载状态
     setSessionLoading(currentSessionId, true);
 
+    // 创建AbortController用于中断请求
+    const abortController = new AbortController();
+    abortControllersRef.current.set(currentSessionId, abortController);
+
     try {
       // 准备发送给AI的消息历史
       const chatMessages: ChatMessage[] = session?.messages
@@ -265,7 +300,10 @@ export const useChatSessions = () => {
             isLoading: false,
           });
           setSessionLoading(currentSessionId, false);
-        }
+          abortControllersRef.current.delete(currentSessionId);
+        },
+        "qwen-max", // model
+        abortController // 传入AbortController
       );
 
       // 流式传输完成，清除加载状态
@@ -283,8 +321,9 @@ export const useChatSessions = () => {
         isLoading: false,
       });
     } finally {
-      // 清除当前会话的加载状态
+      // 清除当前会话的加载状态和AbortController
       setSessionLoading(currentSessionId, false);
+      abortControllersRef.current.delete(currentSessionId);
     }
   }, [currentSessionId, isAILoading, sessions, addMessage, updateSessionTitle, updateMessage, setSessionLoading]);
 
@@ -332,6 +371,7 @@ export const useChatSessions = () => {
     currentSessionId,
     currentSession,
     isAILoading,
+    isSessionGenerating,
     createNewSession,
     switchToSession,
     deleteSession,
@@ -339,6 +379,7 @@ export const useChatSessions = () => {
     addMessage,
     updateMessage,
     sendMessage,
+    stopGeneration,
     handleNewChat,
   };
 };

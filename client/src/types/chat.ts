@@ -31,6 +31,8 @@ export interface ChatContextType {
   currentSession: ChatSession | null;
   // 是否正在加载AI回复
   isAILoading: boolean;
+  // 获取指定会话的生成状态
+  isSessionGenerating: (sessionId: string) => boolean;
 
   // 会话管理方法
   createNewSession: () => ChatSession;
@@ -51,6 +53,8 @@ export interface ChatContextType {
 
   // AI交互方法
   sendMessage: (content: string) => Promise<void>;
+  // 停止生成方法
+  stopGeneration: (sessionId: string) => void;
 
   // 智能新对话逻辑
   handleNewChat: () => void;

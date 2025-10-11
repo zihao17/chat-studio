@@ -4,6 +4,7 @@ import { SendOutlined, LoadingOutlined } from "@ant-design/icons";
 import MainLayout from "../components/layout/MainLayout";
 import { useChatContext } from "../contexts/ChatContext";
 import { DEFAULT_WELCOME_MESSAGE } from "../types/chat";
+import StopGenerationButton from "../components/ui/StopGenerationButton";
 
 /**
  * 主页组件
@@ -28,8 +29,11 @@ const Home: React.FC = () => {
   // 从Context获取会话状态和方法
   const { 
     currentSession, 
+    currentSessionId,
     isAILoading, 
-    sendMessage 
+    isSessionGenerating,
+    sendMessage,
+    stopGeneration
   } = useChatContext();
 
   // 获取距离底部的像素距离
@@ -148,9 +152,19 @@ const Home: React.FC = () => {
     }
   };
 
+  // 处理停止生成
+  const handleStopGeneration = () => {
+    if (currentSessionId) {
+      stopGeneration(currentSessionId);
+    }
+  };
+
   // 获取当前会话的消息列表，如果没有消息则显示欢迎语
   const displayMessages = currentSession?.messages || [];
   const showWelcome = displayMessages.length === 0;
+  
+  // 判断当前会话是否正在生成
+  const isCurrentSessionGenerating = currentSessionId ? isSessionGenerating(currentSessionId) : false;
 
   return (
     <MainLayout>
@@ -215,6 +229,16 @@ const Home: React.FC = () => {
 
           {/* 输入区域 - 移除灰色分割线 */}
           <div className="p-4">
+            {/* 停止生成按钮 - 仅在AI正在生成时显示 */}
+            {isCurrentSessionGenerating && (
+              <div className="mb-2 flex justify-center">
+                <StopGenerationButton
+                  visible={isCurrentSessionGenerating}
+                  onStop={handleStopGeneration}
+                />
+              </div>
+            )}
+            
             <div className="flex gap-2">
               <Input.TextArea
                 value={inputValue}
