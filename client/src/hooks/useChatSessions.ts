@@ -8,7 +8,7 @@ import {
   generateMessageId,
   generateSessionTitle
 } from '../types/chat';
-import { callAIChat, type ChatMessage } from '../utils/aiApi';
+import { callAIChatStream, type ChatMessage } from '../utils/aiApi';
 
 /**
  * 会话状态管理Hook
@@ -202,7 +202,7 @@ export const useChatSessions = () => {
     });
   }, [currentSessionId, debouncedSave]);
 
-  // 发送消息并获取AI回复
+  // 发送消息并获取AI回复（流式）
   const sendMessage = useCallback(async (content: string) => {
     if (!currentSessionId || !content.trim() || isAILoading) return;
 
@@ -242,16 +242,35 @@ export const useChatSessions = () => {
         content: content.trim(),
       });
 
-      // 调用AI接口
-      const aiResponse = await callAIChat(chatMessages);
-      
-      if (aiResponse.error) {
-        throw new Error(aiResponse.error);
-      }
+      // 用于累积流式响应内容
+      let accumulatedContent = "";
 
-      // 更新AI消息
+      // 调用流式AI接口
+      await callAIChatStream(
+        chatMessages,
+        // onChunk: 接收到数据块时的回调
+        (chunk: string) => {
+          accumulatedContent += chunk;
+          // 实时更新AI消息内容
+          updateMessage(currentSessionId, loadingMessage.id, {
+            content: accumulatedContent,
+            isLoading: true, // 保持加载状态直到完成
+          });
+        },
+        // onError: 错误处理回调
+        (error: string) => {
+          console.error('AI流式回复失败:', error);
+          updateMessage(currentSessionId, loadingMessage.id, {
+            content: error,
+            isLoading: false,
+          });
+          setSessionLoading(currentSessionId, false);
+        }
+      );
+
+      // 流式传输完成，清除加载状态
       updateMessage(currentSessionId, loadingMessage.id, {
-        content: aiResponse.content,
+        content: accumulatedContent,
         isLoading: false,
       });
 
