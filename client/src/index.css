@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* 导入highlight.js代码高亮样式 - 白色背景主题 */
+@import "highlight.js/styles/github.css";
 
 /* 定义主题变量 */
 @theme {
@@ -14,6 +16,61 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Markdown渲染样式 */
+@layer components {
+  .markdown-body {
+    @apply text-gray-800 leading-relaxed;
+  }
+  
+  /* 代码块样式优化 */
+  .markdown-body pre {
+    @apply bg-gray-50 text-gray-900 rounded-lg p-4 overflow-x-auto my-4 border border-gray-200;
+  }
+  
+  .markdown-body pre code {
+    @apply bg-transparent text-inherit p-0 rounded-none;
+  }
+  
+  /* 行内代码样式 */
+  .markdown-body code:not(pre code) {
+    @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono;
+  }
+  
+  /* 表格样式 */
+  .markdown-body table {
+    @apply w-full border-collapse my-4;
+  }
+  
+  .markdown-body th,
+  .markdown-body td {
+    @apply border border-gray-300 px-3 py-2 text-left;
+  }
+  
+  .markdown-body th {
+    @apply bg-gray-50 font-semibold;
+  }
+  
+  /* 列表间距优化 */
+  .markdown-body ul,
+  .markdown-body ol {
+    @apply my-2 pl-6;
+  }
+  
+  .markdown-body li {
+    @apply my-1;
+  }
+  
+  /* 引用块样式 */
+  .markdown-body blockquote {
+    @apply border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 italic text-gray-700;
+  }
+  
+  /* 分割线样式 */
+  .markdown-body hr {
+    @apply my-6 border-t border-gray-300;
   }
 }
 

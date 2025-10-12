@@ -5,6 +5,7 @@ import MainLayout from "../components/layout/MainLayout";
 import { useChatContext } from "../contexts/ChatContext";
 import { DEFAULT_WELCOME_MESSAGE } from "../types/chat";
 import StopGenerationButton from "../components/ui/StopGenerationButton";
+import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 
 /**
  * 主页组件
@@ -190,16 +191,19 @@ const Home: React.FC = () => {
             {displayMessages.map((message) => (
               <div key={message.id} className="w-full">
                 {message.role === "assistant" ? (
-                  // AI消息 - 纯文本样式，左对齐，支持流式渲染
-                  <div className="text-gray-800 text-left break-words whitespace-pre-wrap">
+                  // AI消息 - 使用MarkdownRenderer渲染，支持流式渲染
+                  <div className="text-gray-800 text-left break-words">
                     {message.isLoading ? (
                       <div className="flex items-start gap-2">
                         <LoadingOutlined className="text-blue-500 mt-1" />
-                        <div>
+                        <div className="flex-1">
                           {message.content ? (
                             // 流式渲染：显示已接收的内容 + 加载指示器
                             <div>
-                              <span>{message.content}</span>
+                              <MarkdownRenderer 
+                                content={message.content} 
+                                isStreaming={true}
+                              />
                               <span className="inline-block w-2 h-5 bg-blue-500 ml-1 animate-pulse"></span>
                             </div>
                           ) : (
@@ -209,7 +213,10 @@ const Home: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      message.content
+                      <MarkdownRenderer 
+                        content={message.content} 
+                        isStreaming={false}
+                      />
                     )}
                   </div>
                 ) : (
