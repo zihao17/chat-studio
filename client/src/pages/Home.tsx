@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Input, Button, message } from "antd";
-import { SendOutlined, LoadingOutlined } from "@ant-design/icons";
+import { message } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import MainLayout from "../components/layout/MainLayout";
 import { useChatContext } from "../contexts/ChatContext";
 import { DEFAULT_WELCOME_MESSAGE } from "../types/chat";
 import StopGenerationButton from "../components/ui/StopGenerationButton";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
+import ChatInputPanel from "../components/ui/ChatInputPanel";
 
 /**
  * 主页组件
@@ -160,6 +161,24 @@ const Home: React.FC = () => {
     }
   };
 
+  // 处理文件上传
+  const handleFileUpload = () => {
+    // TODO: 实现文件上传功能
+    message.info("文件上传功能即将上线");
+  };
+
+  // 处理知识库
+  const handleKnowledgeBase = () => {
+    // TODO: 实现知识库功能
+    message.info("知识库功能即将上线");
+  };
+
+  // 处理工作流
+  const handleWorkflow = () => {
+    // TODO: 实现工作流功能
+    message.info("工作流功能即将上线");
+  };
+
   // 获取当前会话的消息列表，如果没有消息则显示欢迎语
   const displayMessages = currentSession?.messages || [];
   const showWelcome = displayMessages.length === 0;
@@ -234,11 +253,11 @@ const Home: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* 输入区域 - 移除灰色分割线 */}
-          <div className="p-4">
+          {/* 输入区域 - 一体化聊天输入面板 */}
+          <div className="p-6">
             {/* 停止生成按钮 - 仅在AI正在生成时显示 */}
             {isCurrentSessionGenerating && (
-              <div className="mb-2 flex justify-center">
+              <div className="mb-4 flex justify-center">
                 <StopGenerationButton
                   visible={isCurrentSessionGenerating}
                   onStop={handleStopGeneration}
@@ -246,26 +265,18 @@ const Home: React.FC = () => {
               </div>
             )}
             
-            <div className="flex gap-2">
-              <Input.TextArea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="输入您的消息..."
-                autoSize={{ minRows: 1, maxRows: 4 }}
-                className="flex-1"
-              />
-              <Button
-                type="primary"
-                icon={isAILoading ? <LoadingOutlined /> : <SendOutlined />}
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isAILoading}
-                loading={isAILoading}
-                className="self-end"
-              >
-                {isAILoading ? "发送中" : "发送"}
-              </Button>
-            </div>
+            {/* 一体化聊天输入面板 */}
+            <ChatInputPanel
+              value={inputValue}
+              onChange={setInputValue}
+              onSend={handleSendMessage}
+              onKeyDown={handleKeyPress}
+              placeholder="输入您的消息..."
+              loading={isAILoading}
+              onFileUpload={handleFileUpload}
+              onKnowledgeBase={handleKnowledgeBase}
+              onWorkflow={handleWorkflow}
+            />
           </div>
         </div>
       </div>
