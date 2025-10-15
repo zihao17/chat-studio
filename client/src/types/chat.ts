@@ -9,6 +9,8 @@ export interface Message {
   content: string;
   timestamp: number;
   isLoading?: boolean;
+  // 标记是否为错误消息（用于 UI 自动滚动等逻辑，样式保持一致）
+  isError?: boolean;
 }
 
 // 会话类型定义

@@ -27,21 +27,22 @@ const Home: React.FC = () => {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   // 智能吸附状态：用户是否希望跟随最新消息
   const [isStickToBottom, setIsStickToBottom] = useState(true);
-  
+
   // 从Context获取会话状态和方法
-  const { 
-    currentSession, 
+  const {
+    currentSession,
     currentSessionId,
-    isAILoading, 
+    isAILoading,
     isSessionGenerating,
     sendMessage,
-    stopGeneration
+    stopGeneration,
   } = useChatContext();
 
   // 获取距离底部的像素距离
   const getDistanceFromBottom = () => {
     if (!messagesContainerRef.current) return 0;
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } =
+      messagesContainerRef.current;
     return scrollHeight - scrollTop - clientHeight;
   };
 
@@ -58,9 +59,9 @@ const Home: React.FC = () => {
   // 处理用户滚动事件 - 智能吸附逻辑
   const handleScroll = () => {
     if (!messagesContainerRef.current) return;
-    
+
     const distanceFromBottom = getDistanceFromBottom();
-    
+
     // 智能吸附逻辑
     if (distanceFromBottom <= 100) {
       // 用户滚动到接近底部（≤100px），启用吸附模式
@@ -74,31 +75,43 @@ const Home: React.FC = () => {
     // 在100px-150px之间保持当前状态，避免频繁切换
   };
 
-  // 智能滚动逻辑 - 支持吸附模式和流式输出跟随
+  // 智能滚动逻辑 - 支持吸附模式、流式输出跟随，并在错误消息出现时强制滚动到底部
   useEffect(() => {
     const currentMessageCount = currentSession?.messages?.length || 0;
-    
+
+    // 最新一条消息（用于检测错误消息）
+    const latestMessage = currentSession?.messages?.[currentMessageCount - 1];
+
     // 检测是否有新消息（消息数量增加）
     const hasNewMessage = currentMessageCount > lastMessageCount;
-    
+
     // 检测是否有消息内容更新（AI流式输出）
-    const hasContentUpdate = currentSession?.messages?.some(msg => 
-      msg.role === "assistant" && msg.isLoading
+    const hasContentUpdate = currentSession?.messages?.some(
+      (msg) => msg.role === "assistant" && msg.isLoading
     );
-    
-    if (hasNewMessage || hasContentUpdate) {
+
+    // 当最新消息是错误消息时，强制滚动到底部
+    const hasErrorUpdate =
+      !!latestMessage &&
+      latestMessage.role === "assistant" &&
+      latestMessage.isError === true;
+
+    if (hasNewMessage || hasContentUpdate || hasErrorUpdate) {
       // 决定是否自动滚动的条件：
       // 1. 用户刚发送消息 (shouldAutoScroll)
       // 2. 用户处于吸附模式 (isStickToBottom)
       // 3. 用户未手动滚动且接近底部 (!userHasScrolled && isNearBottom())
-      const shouldScroll = shouldAutoScroll || 
-                          isStickToBottom || 
-                          (!userHasScrolled && isNearBottom());
-      
+      // 4. 最新消息为错误消息 (hasErrorUpdate) → 强制滚动
+      const shouldScroll =
+        hasErrorUpdate ||
+        shouldAutoScroll ||
+        isStickToBottom ||
+        (!userHasScrolled && isNearBottom());
+
       if (shouldScroll) {
         // 对于流式输出，使用更短的延迟以保持跟随效果
         const delay = hasContentUpdate && !hasNewMessage ? 10 : 50;
-        
+
         const timeoutId = setTimeout(() => {
           scrollToBottom();
           // 仅在用户发送消息后重置标志
@@ -106,20 +119,20 @@ const Home: React.FC = () => {
             setShouldAutoScroll(false);
           }
         }, delay);
-        
+
         return () => clearTimeout(timeoutId);
       }
     }
-    
+
     // 更新消息数量记录
     setLastMessageCount(currentMessageCount);
   }, [
-    currentSession?.messages?.length, 
-    currentSession?.messages, // 监听消息内容变化（流式输出）
-    shouldAutoScroll, 
-    userHasScrolled, 
+    currentSession?.messages?.length,
+    currentSession?.messages, // 监听消息内容变化（流式输出/错误消息）
+    shouldAutoScroll,
+    userHasScrolled,
     isStickToBottom,
-    lastMessageCount
+    lastMessageCount,
   ]);
 
   // 发送消息处理函数
@@ -127,10 +140,10 @@ const Home: React.FC = () => {
     if (!inputValue.trim() || isAILoading) return;
 
     const userContent = inputValue.trim();
-    
+
     // 清空输入框
     setInputValue("");
-    
+
     // 标记应该自动滚动（用户发送消息时）
     setShouldAutoScroll(true);
     // 重置用户滚动状态，启用吸附模式
@@ -182,9 +195,11 @@ const Home: React.FC = () => {
   // 获取当前会话的消息列表，如果没有消息则显示欢迎语
   const displayMessages = currentSession?.messages || [];
   const showWelcome = displayMessages.length === 0;
-  
+
   // 判断当前会话是否正在生成
-  const isCurrentSessionGenerating = currentSessionId ? isSessionGenerating(currentSessionId) : false;
+  const isCurrentSessionGenerating = currentSessionId
+    ? isSessionGenerating(currentSessionId)
+    : false;
 
   return (
     <MainLayout>
@@ -220,21 +235,23 @@ const Home: React.FC = () => {
                           {message.content ? (
                             // 流式渲染：显示已接收的内容 + 加载指示器
                             <div>
-                              <MarkdownRenderer 
-                                content={message.content} 
+                              <MarkdownRenderer
+                                content={message.content}
                                 isStreaming={true}
                               />
                               <span className="inline-block w-2 h-5 bg-blue-500 ml-1 animate-pulse"></span>
                             </div>
                           ) : (
                             // 初始加载状态
-                            <span className="text-gray-500">AI正在思考中...</span>
+                            <span className="text-gray-500">
+                              AI正在思考中...
+                            </span>
                           )}
                         </div>
                       </div>
                     ) : (
-                      <MarkdownRenderer 
-                        content={message.content} 
+                      <MarkdownRenderer
+                        content={message.content}
                         isStreaming={false}
                       />
                     )}

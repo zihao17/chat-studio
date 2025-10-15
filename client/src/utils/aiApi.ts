@@ -7,29 +7,37 @@ export interface ChatMessage {
   content: string;
 }
 
-// 流式响应错误处理函数
+// 流式响应错误处理函数（统一友好提示映射）
 function handleStreamError(error: unknown): string {
   console.error("AI流式API调用失败:", error);
 
-  let errorMessage = "抱歉，AI服务暂时不可用，请稍后重试。";
+  // 默认：其他服务端错误（5xx、超时、模型不可用等）
+  let errorMessage = "🤖 AI 服务暂时不可用，请稍后重试。";
 
   if (error instanceof Error) {
-    if (error.message.includes("API key") || error.message.includes("401")) {
-      errorMessage = "API密钥配置错误，请检查配置。";
-    } else if (
-      error.message.includes("network") ||
-      error.message.includes("timeout") ||
-      error.message.includes("Failed to fetch")
+    const msg = error.message || "";
+
+    // 400 Bad Request 且包含指定的格式错误提示
+    if (
+      msg.includes("每个消息必须包含 role 和 content 字段") ||
+      // 一些环境可能只抛出 400 文本
+      (msg.includes("HTTP 400") && msg.includes("Bad Request"))
     ) {
-      errorMessage = "网络连接失败，请检查网络连接。";
-    } else if (
-      error.message.includes("rate limit") ||
-      error.message.includes("429")
-    ) {
-      errorMessage = "API调用频率超限，请稍后重试。";
-    } else if (error.message.includes("408")) {
-      errorMessage = "请求超时，请稍后重试。";
+      return "⚠️ 消息格式异常，请刷新页面或重新开始对话。";
     }
+
+    // 网络连接失败（如 Failed to fetch、ERR_CONNECTION_REFUSED 等）
+    if (
+      msg.includes("Failed to fetch") ||
+      msg.includes("ERR_CONNECTION_REFUSED") ||
+      msg.includes("ECONNREFUSED") ||
+      msg.toLowerCase().includes("network")
+    ) {
+      return "🌐 网络连接失败，请检查网络或稍后重试。";
+    }
+
+    // 其他错误均统一为服务暂不可用
+    return "🤖 AI 服务暂时不可用，请稍后重试。";
   }
 
   return errorMessage;
@@ -120,11 +128,11 @@ export async function callAIChatStream(
     }
   } catch (error) {
     // 检查是否为中断错误
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === "AbortError") {
       // 中断请求不需要显示错误信息
       return;
     }
-    
+
     const errorMsg = handleStreamError(error);
     if (onError) {
       onError(errorMsg);
