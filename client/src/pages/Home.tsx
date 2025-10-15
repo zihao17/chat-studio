@@ -188,15 +188,16 @@ const Home: React.FC = () => {
 
   return (
     <MainLayout>
-      {/* 主聊天区域 - 使用中间80%宽度 */}
-      <div className="h-full flex justify-center bg-white">
-        <div className="w-[80%] h-full flex flex-col">
-          {/* 消息显示区域 */}
-          <div 
-            ref={messagesContainerRef}
-            onScroll={handleScroll}
-            className="flex-1 overflow-y-auto p-4 space-y-4"
-          >
+      {/* 主聊天区域 - 全宽滚动容器 + 视觉内容居中 80% */}
+      <div className="h-full flex flex-col bg-white">
+        {/* 消息滚动容器：全宽，允许在左右 10% 空白区域滚动 */}
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto"
+        >
+          {/* 视觉内容区：80% 宽度、居中 */}
+          <div className="w-[80%] mx-auto p-4 space-y-4">
             {/* 欢迎消息 - 仅在没有消息时显示 */}
             {showWelcome && (
               <div className="w-full">
@@ -252,9 +253,11 @@ const Home: React.FC = () => {
             {/* 用于自动滚动的空div */}
             <div ref={messagesEndRef} />
           </div>
+        </div>
 
-          {/* 输入区域 - 一体化聊天输入面板 */}
-          <div className="p-6">
+        {/* 输入区域：视觉内容宽度仍为 80%，居中 */}
+        <div className="p-6">
+          <div className="w-[80%] mx-auto">
             {/* 停止生成按钮 - 仅在AI正在生成时显示 */}
             {isCurrentSessionGenerating && (
               <div className="mb-4 flex justify-center">
@@ -264,7 +267,7 @@ const Home: React.FC = () => {
                 />
               </div>
             )}
-            
+
             {/* 一体化聊天输入面板 */}
             <ChatInputPanel
               value={inputValue}
