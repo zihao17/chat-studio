@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   PlusOutlined,
   HistoryOutlined,
   BookOutlined,
   PartitionOutlined,
-  MenuFoldOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
 import { useChatContext } from "../../contexts/ChatContext";
@@ -14,7 +13,7 @@ type ButtonType = "new-chat" | "history" | "knowledge" | "workflow";
 
 // 统一的按钮样式常量
 const BUTTON_STYLES = {
-  base: "w-full h-10 flex items-center px-4 rounded-xl border transition-all duration-200 cursor-pointer text-sm",
+  base: "w-full h-10 flex items-center rounded-xl border transition-all duration-200 cursor-pointer text-sm",
   active: "bg-white border-blue-200 text-blue-600 font-bold",
   inactive: "bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200",
   newChat:
@@ -29,6 +28,7 @@ interface SidebarButtonProps {
   isActive: boolean;
   isNewChat?: boolean;
   onClick: () => void;
+  showLabel: boolean;
 }
 
 const SidebarButton: React.FC<SidebarButtonProps> = ({
@@ -37,14 +37,16 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
   isActive,
   isNewChat = false,
   onClick,
+  showLabel,
 }) => {
-  const buttonClasses = `${BUTTON_STYLES.base} ${
+  const paddingAndAlign = showLabel ? "px-4" : "px-2 justify-center";
+  const buttonClasses = `${BUTTON_STYLES.base} ${paddingAndAlign} ${
     isNewChat
       ? BUTTON_STYLES.newChat
       : isActive
       ? BUTTON_STYLES.active
       : BUTTON_STYLES.inactive
-  } max-lg:justify-center max-lg:px-2`;
+  }`;
 
   const iconColor = isNewChat ? "rgb(0, 87, 255)" : undefined;
 
@@ -56,13 +58,15 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
       title={label} // 添加 tooltip 提示
     >
       <span
-        className="max-lg:mr-0 mr-3"
+        className={showLabel ? "mr-3" : ""}
         style={iconColor ? { color: iconColor } : {}}
       >
         {icon}
       </span>
       <span
-        className={`${isActive || isNewChat ? "font-bold" : ""} max-lg:hidden`}
+        className={`${isActive || isNewChat ? "font-bold" : ""} ${
+          showLabel ? "" : "hidden"
+        }`}
       >
         {label}
       </span>
@@ -70,7 +74,48 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
   );
 };
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  /** 是否折叠侧边栏（仅显示图标） */
+  collapsed?: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
+  // 使用实际宽度判断是否显示文字，避免使用固定延时
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isExpandedReady, setIsExpandedReady] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const LABEL_SHOW_WIDTH = 100; // 当宽度达到该值后再显示文字
+
+    const updateReady = () => {
+      const width = el.clientWidth;
+      setIsExpandedReady(!collapsed && width >= LABEL_SHOW_WIDTH);
+    };
+
+    // 初次更新一次
+    updateReady();
+
+    // 优先使用 ResizeObserver 监听宽度变化
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => {
+        updateReady();
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+
+    // 回退：监听 width 过渡结束
+    const onTransitionEnd = (e: any) => {
+      if (e?.propertyName === "width") {
+        updateReady();
+      }
+    };
+    el.addEventListener("transitionend", onTransitionEnd);
+    return () => el.removeEventListener("transitionend", onTransitionEnd);
+  }, [collapsed]);
   const [activeButton, setActiveButton] = useState<ButtonType>("new-chat");
   const {
     sessions,
@@ -177,41 +222,33 @@ const Sidebar: React.FC = () => {
 
   return (
     <div
-      className="w-64 h-screen bg-gray-50 p-4 flex flex-col border-r border-gray-200
-                    max-lg:w-20 max-lg:p-3 max-lg:items-center
-                    max-md:w-16 max-md:p-2"
+      ref={containerRef}
+      className={`${
+        collapsed ? "w-16 p-2 items-center" : "w-64 p-4"
+      } h-screen bg-gray-50 flex flex-col border-r border-gray-200 transition-all duration-300 ease-in-out overflow-hidden`}
     >
       {/* 1. 顶部品牌区 */}
       <div
-        className="flex items-center justify-between mb-6
-                      max-lg:justify-center max-lg:mb-4
-                      max-md:mb-3"
+        className={`flex items-center ${
+          collapsed ? "justify-center mb-4" : "justify-between mb-6"
+        }`}
       >
-        <h1
-          className="text-2xl font-black text-blue-600 font-sans tracking-tight
-                       max-lg:hidden"
-        >
-          Chat Studio
-        </h1>
-        <h1
-          className="text-xl font-black text-blue-600 font-sans tracking-tight hidden
-                       max-lg:block max-lg:text-center"
-        >
-          Chat
-        </h1>
-        <button
-          className="text-black hover:text-gray-600 transition-colors
-                           max-lg:hidden"
-        >
-          <MenuFoldOutlined className="text-lg" />
-        </button>
+        {collapsed || !isExpandedReady ? (
+          <h1 className="text-xl font-black text-blue-600 font-sans tracking-tight text-center whitespace-nowrap">
+            Chat
+          </h1>
+        ) : (
+          <h1 className="text-2xl font-black text-blue-600 font-sans tracking-tight whitespace-nowrap">
+            Chat Studio
+          </h1>
+        )}
       </div>
 
       {/* 2. 功能操作区 */}
       <div
-        className="mb-8 flex flex-col gap-y-1 w-full
-                      max-lg:mb-6 max-lg:gap-y-2
-                      max-md:mb-4"
+        className={`mb-8 flex flex-col gap-y-1 w-full ${
+          collapsed ? "mb-6" : ""
+        }`}
       >
         {/* 新对话按钮 */}
         <SidebarButton
@@ -221,6 +258,7 @@ const Sidebar: React.FC = () => {
           isActive={activeButton === "new-chat"}
           isNewChat={true}
           onClick={() => handleButtonClick("new-chat")}
+          showLabel={isExpandedReady}
         />
 
         {/* 历史对话按钮 */}
@@ -230,6 +268,7 @@ const Sidebar: React.FC = () => {
           label="历史对话"
           isActive={activeButton === "history"}
           onClick={() => handleButtonClick("history")}
+          showLabel={isExpandedReady}
         />
 
         {/* 知识库按钮 */}
@@ -239,6 +278,7 @@ const Sidebar: React.FC = () => {
           label="知识库"
           isActive={activeButton === "knowledge"}
           onClick={() => handleButtonClick("knowledge")}
+          showLabel={isExpandedReady}
         />
 
         {/* 工作流按钮 */}
@@ -248,33 +288,33 @@ const Sidebar: React.FC = () => {
           label="工作流"
           isActive={activeButton === "workflow"}
           onClick={() => handleButtonClick("workflow")}
+          showLabel={isExpandedReady}
         />
       </div>
 
-      {/* 4. 内容显示区 - 根据当前激活按钮显示不同内容 */}
-      <div
-        className="flex-1 overflow-y-auto border-t border-gray-200 w-full
-                      max-lg:border-0 max-lg:flex-none max-lg:mb-4
-                      max-md:mb-2"
-      >
-        {renderContentArea()}
-      </div>
+      {/* 4. 内容显示区 - 根据当前激活的按钮显示不同内容（折叠时保留不可见占位） */}
+      {collapsed || !isExpandedReady ? (
+        <div className="flex-1 w-full invisible" />
+      ) : (
+        <div className="flex-1 overflow-y-auto border-t border-gray-200 w-full">
+          {renderContentArea()}
+        </div>
+      )}
 
-      {/* 5. 底部个人信息区 */}
+      {/* 5. 底部个人信息区：保持固定在底部（通过不可见占位实现） */}
       <div
-        className="mt-4 pt-4 border-t border-gray-200 w-full
-                      max-lg:pt-2 max-lg:border-0
-                      max-md:pt-1"
+        className={`mt-4 pt-4 border-t border-gray-200 w-full ${
+          collapsed ? "pt-2" : ""
+        }`}
       >
         <div
-          className="flex items-center
-                        max-lg:justify-center"
+          className={`flex items-center ${collapsed ? "justify-center" : ""}`}
         >
           {/* 圆形头像 */}
           <div
-            className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center
-                          max-lg:mr-0 max-lg:w-6 max-lg:h-6
-                          max-md:w-5 max-md:h-5"
+            className={`w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center ${
+              collapsed || !isExpandedReady ? "mr-0" : "mr-2"
+            }`}
           >
             <span
               className="text-black font-bold text-sm
@@ -285,8 +325,9 @@ const Sidebar: React.FC = () => {
           </div>
           {/* 用户名 */}
           <span
-            className="text-black font-bold text-sm font-sans
-                           max-lg:hidden"
+            className={`text-black font-bold text-sm font-sans ${
+              collapsed || !isExpandedReady ? "hidden" : ""
+            }`}
           >
             用户名
           </span>
