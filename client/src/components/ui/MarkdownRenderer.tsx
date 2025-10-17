@@ -20,9 +20,16 @@ interface MarkdownRendererProps {
 }
 
 /**
+ * 表格组件类型定义
+ */
+interface TableProps {
+  children?: React.ReactNode;
+}
+
+/**
  * 自定义表格渲染组件
  */
-const Table: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const Table: React.FC<TableProps> = ({ children }) => (
   <div className="overflow-x-auto my-4">
     <table className="min-w-full border-collapse border border-gray-300">
       {children}
@@ -30,25 +37,25 @@ const Table: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-const TableHead: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const TableHead: React.FC<TableProps> = ({ children }) => (
   <thead className="bg-gray-50">
     {children}
   </thead>
 );
 
-const TableRow: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const TableRow: React.FC<TableProps> = ({ children }) => (
   <tr className="border-b border-gray-200">
     {children}
   </tr>
 );
 
-const TableCell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const TableCell: React.FC<TableProps> = ({ children }) => (
   <td className="border border-gray-300 px-4 py-2">
     {children}
   </td>
 );
 
-const TableHeaderCell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const TableHeaderCell: React.FC<TableProps> = ({ children }) => (
   <th className="border border-gray-300 px-4 py-2 font-semibold text-left">
     {children}
   </th>

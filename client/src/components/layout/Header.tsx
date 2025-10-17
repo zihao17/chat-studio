@@ -1,5 +1,8 @@
-import React from "react";
-import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import React, { useState } from "react";
+import { MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined, LoginOutlined, LogoutOutlined } from "@ant-design/icons";
+import { Button, Dropdown, Avatar, Space } from "antd";
+import { useAuth } from "../../contexts/AuthContext";
+import AuthModal from "../auth/AuthModal";
 
 interface HeaderProps {
   collapsed: boolean;
@@ -8,31 +11,111 @@ interface HeaderProps {
 
 /**
  * 头部组件
- * 左侧为侧边栏折叠/展开按钮，右侧显示虚拟时间
+ * 左侧为侧边栏折叠/展开按钮，右侧显示用户信息或登录按钮
  */
 const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
-  return (
-    <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3">
-      <div className="flex items-center justify-between">
-        {/* 折叠/展开按钮 */}
-        <button
-          onClick={onToggleSidebar}
-          aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
-          className="flex items-center justify-center h-9 w-9 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
-        >
-          {collapsed ? (
-            <MenuUnfoldOutlined className="text-lg" />
-          ) : (
-            <MenuFoldOutlined className="text-lg" />
-          )}
-        </button>
+  const { state, logout } = useAuth();
+  const [authModalVisible, setAuthModalVisible] = useState(false);
 
-        {/* 右侧时间显示 */}
-        <div className="text-gray-600 text-sm font-medium ml-auto">
-          2025.10.8 | pzh
+  /**
+   * 处理登出
+   */
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('登出失败:', error);
+    }
+  };
+
+  /**
+   * 用户菜单项
+   */
+  const userMenuItems = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: '个人信息',
+      disabled: true, // 暂时禁用，后续可扩展
+    },
+    {
+      type: 'divider' as const,
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ];
+
+  return (
+    <>
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3">
+        <div className="flex items-center justify-between">
+          {/* 折叠/展开按钮 */}
+          <button
+            onClick={onToggleSidebar}
+            aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+            className="flex items-center justify-center h-9 w-9 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            {collapsed ? (
+              <MenuUnfoldOutlined className="text-lg" />
+            ) : (
+              <MenuFoldOutlined className="text-lg" />
+            )}
+          </button>
+
+          {/* 右侧用户区域 */}
+          <div className="flex items-center space-x-4">
+            {/* 时间显示 */}
+            <div className="text-gray-600 text-sm font-medium hidden sm:block">
+              2025.10.8 | Chat Studio
+            </div>
+
+            {/* 用户状态显示 */}
+            {state.isAuthenticated && state.user ? (
+              <Dropdown
+                menu={{ items: userMenuItems }}
+                placement="bottomRight"
+                trigger={['click']}
+              >
+                <Space className="cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
+                  <Avatar 
+                    size="small" 
+                    icon={<UserOutlined />}
+                    className="bg-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium hidden sm:inline">
+                    {state.user.username}
+                  </span>
+                </Space>
+              </Dropdown>
+            ) : (
+              <Button
+                type="primary"
+                icon={<LoginOutlined />}
+                onClick={() => setAuthModalVisible(true)}
+                loading={state.isLoading}
+                className="flex items-center"
+              >
+                <span className="hidden sm:inline ml-1">登录</span>
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* 认证弹窗 */}
+      <AuthModal
+        visible={authModalVisible}
+        onCancel={() => setAuthModalVisible(false)}
+        onSuccess={() => {
+          // 登录成功后的回调，数据同步逻辑已在useChatSessions中处理
+          console.log('用户登录成功，数据同步将自动进行');
+        }}
+      />
+    </>
   );
 };
 

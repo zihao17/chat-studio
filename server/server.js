@@ -6,12 +6,16 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const cookieParser = require('cookie-parser');
 
 // 加载环境变量
 dotenv.config();
 
-// 导入路由模块
+// 导入数据库和路由模块
+const { getDatabase, initializeTables, closeDatabase } = require('./db/database');
 const chatRoutes = require('./routes/chat');
+const { router: authRoutes } = require('./routes/auth');
+const chatSyncRoutes = require('./routes/chatSync');
 
 /**
  * 环境变量校验函数
@@ -76,6 +80,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser()); // 解析 Cookie
 
 // 请求日志中间件
 app.use((req, res, next) => {
@@ -93,6 +98,8 @@ app.get('/health', (req, res) => {
 });
 
 // 注册路由
+app.use('/api/auth', authRoutes);
+app.use('/api/chat-sync', chatSyncRoutes);
 app.use('/api', chatRoutes);
 
 // API 路由占位符
@@ -102,7 +109,13 @@ app.get('/api', (req, res) => {
     version: '1.0.0',
     endpoints: [
       'GET /health - 健康检查',
-      'POST /api/chat - AI 对话代理'
+      'POST /api/chat - AI 对话代理',
+      'POST /api/auth/register - 用户注册',
+      'POST /api/auth/login - 用户登录',
+      'POST /api/auth/logout - 用户登出',
+      'GET /api/auth/verify - 身份验证',
+      'GET /api/chat-sync/sessions - 获取用户会话',
+      'POST /api/chat-sync/sync-guest-data - 同步游客数据'
     ]
   });
 });
@@ -128,21 +141,37 @@ app.use((err, req, res, next) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
-  console.log(`🚀 Chat Studio 服务器启动成功`);
-  console.log(`📍 服务地址: http://localhost:${PORT}`);
-  console.log(`🌍 环境: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔑 API Key: ${process.env.DASHSCOPE_API_KEY.substring(0, 8)}...`);
-  console.log(`⏰ 启动时间: ${new Date().toISOString()}`);
-});
+async function startServer() {
+  try {
+    // 初始化数据库
+    const db = getDatabase();
+    await initializeTables(db);
+    
+    app.listen(PORT, () => {
+      console.log(`🚀 Chat Studio 服务器启动成功`);
+      console.log(`📍 服务地址: http://localhost:${PORT}`);
+      console.log(`🌍 环境: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔑 API Key: ${process.env.DASHSCOPE_API_KEY.substring(0, 8)}...`);
+      console.log(`💾 数据库: SQLite (WAL模式)`);
+      console.log(`⏰ 启动时间: ${new Date().toISOString()}`);
+    });
+  } catch (error) {
+    console.error('❌ 服务器启动失败:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 // 优雅关闭处理
 process.on('SIGTERM', () => {
   console.log('收到 SIGTERM 信号，正在关闭服务器...');
+  closeDatabase();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('收到 SIGINT 信号，正在关闭服务器...');
+  closeDatabase();
   process.exit(0);
 });

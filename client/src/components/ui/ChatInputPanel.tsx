@@ -188,7 +188,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           size="small"
           icon={loading ? <LoadingOutlined /> : <SendOutlined />}
           onClick={onSend}
-          disabled={!value.trim() || loading}
+          disabled={disabled || !value.trim() || loading}
           loading={loading}
           className="
             flex items-center justify-center h-8 px-4 rounded-lg

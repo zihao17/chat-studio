@@ -3,25 +3,30 @@ import {
   type ChatSession,
   type Message,
   STORAGE_KEYS,
-  DEFAULT_WELCOME_MESSAGE,
   generateId,
   generateMessageId,
   generateSessionTitle,
 } from "../types/chat";
 import { callAIChatStream, type ChatMessage } from "../utils/aiApi";
+import { useAuth } from "../contexts/AuthContext";
+import { useChatSync } from "./useChatSync";
 
 /**
  * 会话状态管理Hook
  * 提供会话的创建、切换、删除等功能
  */
 export const useChatSessions = () => {
+  const { state: authState } = useAuth();
+  const chatSync = useChatSync();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   // 存储每个会话的AbortController，用于中断流式响应
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  // 标记是否已经进行过登录后的数据同步
+  const [hasSyncedAfterLogin, setHasSyncedAfterLogin] = useState(false);
 
   // 防抖保存的引用
-  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const saveTimeoutRef = useRef<number | undefined>(undefined);
 
   // 获取当前活跃会话
   const currentSession =
@@ -66,9 +71,14 @@ export const useChatSessions = () => {
     [sessions]
   );
 
-  // 防抖保存到localStorage
+  // 防抖保存到localStorage（仅在游客模式下）
   const debouncedSave = useCallback(
     (sessionsToSave: ChatSession[], currentId: string | null) => {
+      // 如果用户已登录，不保存到localStorage
+      if (authState.isAuthenticated) {
+        return;
+      }
+
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
@@ -87,7 +97,7 @@ export const useChatSessions = () => {
         }
       }, 500);
     },
-    []
+    [authState.isAuthenticated]
   );
 
   // 设置指定会话的加载状态
@@ -107,8 +117,13 @@ export const useChatSessions = () => {
     [currentSessionId, debouncedSave]
   );
 
-  // 从localStorage加载数据
+  // 从localStorage加载数据（仅在游客模式下）
   const loadFromStorage = useCallback(() => {
+    // 如果用户已登录，不从localStorage加载
+    if (authState.isAuthenticated) {
+      return;
+    }
+
     try {
       const savedSessions = localStorage.getItem(STORAGE_KEYS.CHAT_SESSIONS);
       const savedCurrentId = localStorage.getItem(
@@ -136,7 +151,7 @@ export const useChatSessions = () => {
     } catch (error) {
       console.error("加载会话数据失败:", error);
     }
-  }, []);
+  }, [authState.isAuthenticated]);
 
   // 创建新会话
   const createNewSession = useCallback((): ChatSession => {
@@ -191,8 +206,13 @@ export const useChatSessions = () => {
 
         return updated;
       });
+
+      // 如果用户已登录，同时删除云端数据
+      if (authState.isAuthenticated) {
+        chatSync.deleteSession(sessionId);
+      }
     },
-    [currentSessionId, debouncedSave]
+    [currentSessionId, debouncedSave, authState.isAuthenticated, chatSync]
   );
 
   // 更新会话标题
@@ -240,9 +260,15 @@ export const useChatSessions = () => {
         return updated;
       });
 
+      // 如果用户已登录，同时保存到云端
+      if (authState.isAuthenticated && !messageData.isLoading) {
+        // 不在这里保存消息，避免重复保存
+        // 用户消息在sendMessage中保存，AI消息在流式完成后保存
+      }
+
       return newMessage;
     },
-    [currentSessionId, debouncedSave]
+    [currentSessionId, debouncedSave, authState.isAuthenticated, chatSync]
   );
 
   // 更新消息
@@ -283,11 +309,21 @@ export const useChatSessions = () => {
 
       // 如果是会话的第一条用户消息，更新会话标题
       const session = sessions.find((s) => s.id === currentSessionId);
-      if (
-        session &&
-        session.messages.filter((m) => m.role === "user").length === 0
-      ) {
-        updateSessionTitle(currentSessionId, generateSessionTitle(content));
+      const isFirstUserMessage = session && session.messages.filter((m) => m.role === "user").length === 0;
+      
+      if (isFirstUserMessage) {
+        const newTitle = generateSessionTitle(content);
+        updateSessionTitle(currentSessionId, newTitle);
+        
+        // 如果用户已登录，同时保存标题到云端
+        if (authState.isAuthenticated) {
+          chatSync.saveMessage(currentSessionId, "user", content.trim(), newTitle);
+        }
+      } else {
+        // 不是第一条消息，正常保存
+        if (authState.isAuthenticated) {
+          chatSync.saveMessage(currentSessionId, "user", content.trim());
+        }
       }
 
       // 添加AI加载消息
@@ -361,6 +397,11 @@ export const useChatSessions = () => {
             content: accumulatedContent,
             isLoading: false,
           });
+          
+          // AI回复完成后，保存到云端
+          if (authState.isAuthenticated && accumulatedContent.trim()) {
+            chatSync.saveMessage(currentSessionId, "assistant", accumulatedContent);
+          }
         }
       } catch (error) {
         console.error("AI回复失败:", error);
@@ -410,17 +451,90 @@ export const useChatSessions = () => {
     createNewSession();
   }, [sessions, switchToSession, createNewSession]);
 
-  // 组件挂载时加载数据
+  // 处理用户登录后的数据同步
   useEffect(() => {
-    loadFromStorage();
-  }, [loadFromStorage]);
+    const handleLoginSync = async () => {
+      if (authState.isAuthenticated && !hasSyncedAfterLogin && !chatSync.isSyncing) {
+        console.log('用户登录，开始处理数据同步...');
+        
+        try {
+          // 获取本地游客数据
+          const guestSessions = localStorage.getItem(STORAGE_KEYS.CHAT_SESSIONS);
+          const parsedGuestSessions: ChatSession[] = guestSessions ? JSON.parse(guestSessions) : [];
+          
+          // 加载云端数据
+          const cloudSessions = await chatSync.loadCloudData();
+          
+          if (parsedGuestSessions.length > 0) {
+            // 有游客数据，需要同步到云端
+            const syncSuccess = await chatSync.syncGuestData(parsedGuestSessions);
+            
+            if (syncSuccess) {
+              // 同步成功后，重新加载云端数据（包含刚同步的数据）
+              const updatedCloudSessions = await chatSync.loadCloudData();
+              setSessions(updatedCloudSessions);
+              
+              // 设置当前会话为最新的会话
+              if (updatedCloudSessions.length > 0) {
+                const latestSession = updatedCloudSessions.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+                setCurrentSessionId(latestSession.id);
+              }
+            } else {
+              // 同步失败，使用云端数据
+              setSessions(cloudSessions);
+              if (cloudSessions.length > 0) {
+                const latestSession = cloudSessions.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+                setCurrentSessionId(latestSession.id);
+              }
+            }
+          } else {
+            // 没有游客数据，直接使用云端数据
+            setSessions(cloudSessions);
+            if (cloudSessions.length > 0) {
+              const latestSession = cloudSessions.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+              setCurrentSessionId(latestSession.id);
+            }
+          }
+          
+          setHasSyncedAfterLogin(true);
+        } catch (error) {
+          console.error('登录后数据同步失败:', error);
+          // 同步失败时，保持当前状态，不影响用户使用
+        }
+      }
+    };
 
-  // 如果没有会话，自动创建第一个
+    handleLoginSync();
+  }, [authState.isAuthenticated, hasSyncedAfterLogin, chatSync]);
+
+  // 处理用户登出后的状态重置
+  useEffect(() => {
+    if (!authState.isAuthenticated && hasSyncedAfterLogin) {
+      console.log('用户登出，重置状态...');
+      setHasSyncedAfterLogin(false);
+      setSessions([]);
+      setCurrentSessionId(null);
+      // 重新加载游客数据
+      loadFromStorage();
+    }
+  }, [authState.isAuthenticated, hasSyncedAfterLogin, loadFromStorage]);
+
+  // 如果没有会话，自动创建第一个（仅在游客模式或同步完成后）
   useEffect(() => {
     if (sessions.length === 0 && currentSessionId === null) {
-      createNewSession();
+      // 游客模式或已完成登录同步的情况下才创建新会话
+      if (!authState.isAuthenticated || hasSyncedAfterLogin) {
+        createNewSession();
+      }
     }
-  }, [sessions.length, currentSessionId, createNewSession]);
+  }, [sessions.length, currentSessionId, createNewSession, authState.isAuthenticated, hasSyncedAfterLogin]);
+
+  // 组件挂载时加载游客数据（仅在游客模式下）
+  useEffect(() => {
+    if (!authState.isAuthenticated) {
+      loadFromStorage();
+    }
+  }, [authState.isAuthenticated, loadFromStorage]);
 
   // 清理定时器
   useEffect(() => {
