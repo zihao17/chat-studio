@@ -20,6 +20,7 @@ export const useChatSessions = () => {
   const chatSync = useChatSync();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState<string>("qwen-max"); // 默认模型
   // 存储每个会话的AbortController，用于中断流式响应
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // 标记是否已经进行过登录后的数据同步
@@ -73,7 +74,11 @@ export const useChatSessions = () => {
 
   // 防抖保存到localStorage（仅在游客模式下）
   const debouncedSave = useCallback(
-    (sessionsToSave: ChatSession[], currentId: string | null) => {
+    (
+      sessionsToSave: ChatSession[],
+      currentId: string | null,
+      modelId?: string
+    ) => {
       // 如果用户已登录，不保存到localStorage
       if (authState.isAuthenticated) {
         return;
@@ -92,12 +97,27 @@ export const useChatSessions = () => {
           if (currentId) {
             localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION_ID, currentId);
           }
+          if (modelId) {
+            localStorage.setItem(STORAGE_KEYS.CURRENT_MODEL, modelId);
+          }
         } catch (error) {
           console.error("保存会话数据失败:", error);
         }
       }, 500);
     },
     [authState.isAuthenticated]
+  );
+
+  // 设置当前模型并保存到localStorage
+  const handleSetCurrentModel = useCallback(
+    (modelId: string) => {
+      setCurrentModel(modelId);
+      // 保存到localStorage（仅在游客模式下）
+      if (!authState.isAuthenticated) {
+        debouncedSave(sessions, currentSessionId, modelId);
+      }
+    },
+    [authState.isAuthenticated, sessions, currentSessionId, debouncedSave]
   );
 
   // 设置指定会话的加载状态
@@ -129,6 +149,12 @@ export const useChatSessions = () => {
       const savedCurrentId = localStorage.getItem(
         STORAGE_KEYS.CURRENT_SESSION_ID
       );
+      const savedModel = localStorage.getItem(STORAGE_KEYS.CURRENT_MODEL);
+
+      // 恢复模型选择
+      if (savedModel) {
+        setCurrentModel(savedModel);
+      }
 
       if (savedSessions) {
         const parsedSessions: ChatSession[] = JSON.parse(savedSessions);
@@ -309,15 +335,22 @@ export const useChatSessions = () => {
 
       // 如果是会话的第一条用户消息，更新会话标题
       const session = sessions.find((s) => s.id === currentSessionId);
-      const isFirstUserMessage = session && session.messages.filter((m) => m.role === "user").length === 0;
-      
+      const isFirstUserMessage =
+        session &&
+        session.messages.filter((m) => m.role === "user").length === 0;
+
       if (isFirstUserMessage) {
         const newTitle = generateSessionTitle(content);
         updateSessionTitle(currentSessionId, newTitle);
-        
+
         // 如果用户已登录，同时保存标题到云端
         if (authState.isAuthenticated) {
-          chatSync.saveMessage(currentSessionId, "user", content.trim(), newTitle);
+          chatSync.saveMessage(
+            currentSessionId,
+            "user",
+            content.trim(),
+            newTitle
+          );
         }
       } else {
         // 不是第一条消息，正常保存
@@ -387,7 +420,14 @@ export const useChatSessions = () => {
             setSessionLoading(currentSessionId, false);
             abortControllersRef.current.delete(currentSessionId);
           },
-          "qwen-max", // model
+          // onStats: 接收到统计信息时的回调
+          (stats) => {
+            // 将统计信息添加到消息中
+            updateMessage(currentSessionId, loadingMessage.id, {
+              stats: stats,
+            });
+          },
+          currentModel, // 使用当前选中的模型
           abortController // 传入AbortController
         );
 
@@ -397,10 +437,14 @@ export const useChatSessions = () => {
             content: accumulatedContent,
             isLoading: false,
           });
-          
+
           // AI回复完成后，保存到云端
           if (authState.isAuthenticated && accumulatedContent.trim()) {
-            chatSync.saveMessage(currentSessionId, "assistant", accumulatedContent);
+            chatSync.saveMessage(
+              currentSessionId,
+              "assistant",
+              accumulatedContent
+            );
           }
         }
       } catch (error) {
@@ -426,6 +470,9 @@ export const useChatSessions = () => {
       updateSessionTitle,
       updateMessage,
       setSessionLoading,
+      currentModel,
+      authState.isAuthenticated,
+      chatSync,
     ]
   );
 
@@ -454,36 +501,50 @@ export const useChatSessions = () => {
   // 处理用户登录后的数据同步
   useEffect(() => {
     const handleLoginSync = async () => {
-      if (authState.isAuthenticated && !hasSyncedAfterLogin && !chatSync.isSyncing) {
-        console.log('用户登录，开始处理数据同步...');
-        
+      if (
+        authState.isAuthenticated &&
+        !hasSyncedAfterLogin &&
+        !chatSync.isSyncing
+      ) {
+        console.log("用户登录，开始处理数据同步...");
+
         try {
           // 获取本地游客数据
-          const guestSessions = localStorage.getItem(STORAGE_KEYS.CHAT_SESSIONS);
-          const parsedGuestSessions: ChatSession[] = guestSessions ? JSON.parse(guestSessions) : [];
-          
+          const guestSessions = localStorage.getItem(
+            STORAGE_KEYS.CHAT_SESSIONS
+          );
+          const parsedGuestSessions: ChatSession[] = guestSessions
+            ? JSON.parse(guestSessions)
+            : [];
+
           // 加载云端数据
           const cloudSessions = await chatSync.loadCloudData();
-          
+
           if (parsedGuestSessions.length > 0) {
             // 有游客数据，需要同步到云端
-            const syncSuccess = await chatSync.syncGuestData(parsedGuestSessions);
-            
+            const syncSuccess = await chatSync.syncGuestData(
+              parsedGuestSessions
+            );
+
             if (syncSuccess) {
               // 同步成功后，重新加载云端数据（包含刚同步的数据）
               const updatedCloudSessions = await chatSync.loadCloudData();
               setSessions(updatedCloudSessions);
-              
+
               // 设置当前会话为最新的会话
               if (updatedCloudSessions.length > 0) {
-                const latestSession = updatedCloudSessions.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+                const latestSession = updatedCloudSessions.sort(
+                  (a, b) => b.updatedAt - a.updatedAt
+                )[0];
                 setCurrentSessionId(latestSession.id);
               }
             } else {
               // 同步失败，使用云端数据
               setSessions(cloudSessions);
               if (cloudSessions.length > 0) {
-                const latestSession = cloudSessions.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+                const latestSession = cloudSessions.sort(
+                  (a, b) => b.updatedAt - a.updatedAt
+                )[0];
                 setCurrentSessionId(latestSession.id);
               }
             }
@@ -491,14 +552,16 @@ export const useChatSessions = () => {
             // 没有游客数据，直接使用云端数据
             setSessions(cloudSessions);
             if (cloudSessions.length > 0) {
-              const latestSession = cloudSessions.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+              const latestSession = cloudSessions.sort(
+                (a, b) => b.updatedAt - a.updatedAt
+              )[0];
               setCurrentSessionId(latestSession.id);
             }
           }
-          
+
           setHasSyncedAfterLogin(true);
         } catch (error) {
-          console.error('登录后数据同步失败:', error);
+          console.error("登录后数据同步失败:", error);
           // 同步失败时，保持当前状态，不影响用户使用
         }
       }
@@ -510,7 +573,7 @@ export const useChatSessions = () => {
   // 处理用户登出后的状态重置
   useEffect(() => {
     if (!authState.isAuthenticated && hasSyncedAfterLogin) {
-      console.log('用户登出，重置状态...');
+      console.log("用户登出，重置状态...");
       setHasSyncedAfterLogin(false);
       setSessions([]);
       setCurrentSessionId(null);
@@ -527,7 +590,13 @@ export const useChatSessions = () => {
         createNewSession();
       }
     }
-  }, [sessions.length, currentSessionId, createNewSession, authState.isAuthenticated, hasSyncedAfterLogin]);
+  }, [
+    sessions.length,
+    currentSessionId,
+    createNewSession,
+    authState.isAuthenticated,
+    hasSyncedAfterLogin,
+  ]);
 
   // 组件挂载时加载游客数据（仅在游客模式下）
   useEffect(() => {
@@ -550,6 +619,7 @@ export const useChatSessions = () => {
     currentSessionId,
     currentSession,
     isAILoading,
+    currentModel,
     isSessionGenerating,
     createNewSession,
     switchToSession,
@@ -559,6 +629,7 @@ export const useChatSessions = () => {
     updateMessage,
     sendMessage,
     stopGeneration,
+    setCurrentModel: handleSetCurrentModel,
     handleNewChat,
   };
 };

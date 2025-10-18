@@ -250,10 +250,18 @@ const Home: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <MarkdownRenderer
-                        content={message.content}
-                        isStreaming={false}
-                      />
+                      <div>
+                        <MarkdownRenderer
+                          content={message.content}
+                          isStreaming={false}
+                        />
+                        {/* AI回复统计信息 */}
+                        {message.stats && (
+                          <div className="text-xs text-gray-400 mt-2 font-mono">
+                            {message.stats.model} | {message.stats.responseTime} | {message.stats.totalTokens} tokens
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (

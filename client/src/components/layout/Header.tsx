@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined, LoginOutlined, LogoutOutlined } from "@ant-design/icons";
 import { Button, Dropdown, Avatar, Space } from "antd";
 import { useAuth } from "../../contexts/AuthContext";
+import { useChatContext } from "../../contexts/ChatContext";
 import AuthModal from "../auth/AuthModal";
+import ModelSelector from "../ui/ModelSelector";
 
 interface HeaderProps {
   collapsed: boolean;
@@ -15,10 +17,11 @@ interface HeaderProps {
  */
 const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
   const { state, logout } = useAuth();
+  const { currentModel, setCurrentModel } = useChatContext();
   const [authModalVisible, setAuthModalVisible] = useState(false);
 
   /**
-   * 处理登出
+   * 处理用户登出
    */
   const handleLogout = async () => {
     try {
@@ -26,6 +29,13 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
     } catch (error) {
       console.error('登出失败:', error);
     }
+  };
+
+  /**
+   * 处理模型切换
+   */
+  const handleModelChange = (modelId: string) => {
+    setCurrentModel(modelId);
   };
 
   /**
@@ -53,18 +63,28 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
     <>
       <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3">
         <div className="flex items-center justify-between">
-          {/* 折叠/展开按钮 */}
-          <button
-            onClick={onToggleSidebar}
-            aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
-            className="flex items-center justify-center h-9 w-9 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            {collapsed ? (
-              <MenuUnfoldOutlined className="text-lg" />
-            ) : (
-              <MenuFoldOutlined className="text-lg" />
-            )}
-          </button>
+          {/* 左侧区域 - 折叠按钮和模型选择器 */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onToggleSidebar}
+              aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+              className="flex items-center justify-center h-9 w-9 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              {collapsed ? (
+                <MenuUnfoldOutlined className="text-lg" />
+              ) : (
+                <MenuFoldOutlined className="text-lg" />
+              )}
+            </button>
+            
+            {/* 模型选择器 */}
+            <ModelSelector
+              value={currentModel}
+              onChange={handleModelChange}
+              size="small"
+              className="w-48"
+            />
+          </div>
 
           {/* 右侧用户区域 */}
           <div className="flex items-center space-x-4">

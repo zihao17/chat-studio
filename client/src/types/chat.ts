@@ -11,6 +11,14 @@ export interface Message {
   isLoading?: boolean;
   // 标记是否为错误消息（用于 UI 自动滚动等逻辑，样式保持一致）
   isError?: boolean;
+  // AI回复的统计信息
+  stats?: {
+    model: string;
+    responseTime: string;
+    totalTokens: number;
+    promptTokens: number;
+    completionTokens: number;
+  };
 }
 
 // 会话类型定义
@@ -33,6 +41,8 @@ export interface ChatContextType {
   currentSession: ChatSession | null;
   // 是否正在加载AI回复
   isAILoading: boolean;
+  // 当前选中的模型
+  currentModel: string;
   // 获取指定会话的生成状态
   isSessionGenerating: (sessionId: string) => boolean;
 
@@ -57,6 +67,8 @@ export interface ChatContextType {
   sendMessage: (content: string) => Promise<void>;
   // 停止生成方法
   stopGeneration: (sessionId: string) => void;
+  // 设置当前模型
+  setCurrentModel: (modelId: string) => void;
 
   // 智能新对话逻辑
   handleNewChat: () => void;
@@ -66,6 +78,7 @@ export interface ChatContextType {
 export const STORAGE_KEYS = {
   CHAT_SESSIONS: "chat-studio-sessions",
   CURRENT_SESSION_ID: "chat-studio-current-session-id",
+  CURRENT_MODEL: "chat-studio-current-model",
 } as const;
 
 // 默认欢迎消息

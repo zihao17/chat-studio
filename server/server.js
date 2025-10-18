@@ -27,6 +27,14 @@ function validateEnvironment() {
     'DASHSCOPE_BASE_URL'
   ];
 
+  // 可选的环境变量（至少需要一个AI服务配置）
+  const optionalEnvVars = [
+    'MODELSCOPE_API_KEY',
+    'MODELSCOPE_BASE_URL',
+    'OPENAI_API_KEY',
+    'OPENAI_BASE_URL'
+  ];
+
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
   if (missingVars.length > 0) {
@@ -45,7 +53,23 @@ function validateEnvironment() {
     process.exit(1);
   }
 
+  // 校验可选的ModelScope配置
+  if (process.env.MODELSCOPE_API_KEY && !process.env.MODELSCOPE_API_KEY.startsWith('ms-')) {
+    console.error('❌ MODELSCOPE_API_KEY 格式错误，应以 "ms-" 开头');
+    process.exit(1);
+  }
+
   console.log('✅ 环境变量校验通过');
+  
+  // 显示已配置的AI服务
+  const configuredServices = ['阿里百炼(DashScope)'];
+  if (process.env.MODELSCOPE_API_KEY && process.env.MODELSCOPE_BASE_URL) {
+    configuredServices.push('魔搭社区(ModelScope)');
+  }
+  if (process.env.OPENAI_API_KEY && process.env.OPENAI_BASE_URL) {
+    configuredServices.push('OpenAI');
+  }
+  console.log(`🤖 已配置的AI服务: ${configuredServices.join(', ')}`);
 }
 
 // 执行环境变量校验

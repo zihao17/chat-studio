@@ -48,6 +48,7 @@ function handleStreamError(error: unknown): string {
  * @param messages 聊天消息历史
  * @param onChunk 接收到数据块时的回调
  * @param onError 错误处理回调
+ * @param onStats 接收到统计信息时的回调
  * @param model 使用的模型
  * @param abortController 用于中断请求的控制器
  */
@@ -55,6 +56,13 @@ export async function callAIChatStream(
   messages: ChatMessage[],
   onChunk: (chunk: string) => void,
   onError?: (error: string) => void,
+  onStats?: (stats: {
+    model: string;
+    responseTime: string;
+    totalTokens: number;
+    promptTokens: number;
+    completionTokens: number;
+  }) => void,
   model: string = "qwen-max",
   abortController?: AbortController
 ): Promise<void> {
@@ -110,6 +118,11 @@ export async function callAIChatStream(
             const parsed = JSON.parse(data);
             if (parsed.content) {
               onChunk(parsed.content);
+            } else if (parsed.stats) {
+              // 处理统计信息
+              if (onStats) {
+                onStats(parsed.stats);
+              }
             } else if (parsed.error) {
               // 处理流式响应中的错误
               const errorMsg = handleStreamError(new Error(parsed.error));
