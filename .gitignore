@@ -32,3 +32,37 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm
+server/db/chat_studio.db*
+
+# 临时文件和缓存
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+
+# 操作系统文件
+Thumbs.db
+.DS_Store
+
+# 备份文件
+*.bak
+*.backup
+*~
+
+# 测试覆盖率报告
+coverage/
+.nyc_output/
+
+# 运行时文件
+*.pid
+*.seed
+*.pid.lock
+
+# 其他常见忽略项
+.vscode/settings.json
+.history/

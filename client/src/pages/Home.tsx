@@ -27,6 +27,12 @@ const Home: React.FC = () => {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   // 智能吸附状态：用户是否希望跟随最新消息
   const [isStickToBottom, setIsStickToBottom] = useState(true);
+  // 滚动锁：防抖延迟滚动的 timeout ID
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 流式输出状态：标记是否正在接收流式数据
+  const [isStreaming, setIsStreaming] = useState(false);
+  // 保底滚动定时器：极端情况下的兜底机制
+  const fallbackScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 从Context获取会话状态和方法
   const {
@@ -51,9 +57,62 @@ const Home: React.FC = () => {
     return getDistanceFromBottom() <= 100;
   };
 
-  // 滚动到底部的函数
+  // 滚动到底部的函数 - 使用微任务队列 + 单次 rAF 确保准确滚动
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // 使用微任务确保 React 状态已提交，在当前宏任务结束后、浏览器渲染前执行
+    queueMicrotask(() => {
+      // 单次 rAF：确保 DOM 更新和布局计算完成
+      requestAnimationFrame(() => {
+        if (messagesContainerRef.current) {
+          const container = messagesContainerRef.current;
+          // 强制读取 scrollHeight 触发浏览器布局计算，确保高度是最新的
+          const scrollHeight = container.scrollHeight;
+          
+          // 滚动到底部
+          container.scrollTo({
+            top: scrollHeight,
+            behavior: "smooth"
+          });
+        }
+      });
+    });
+  };
+
+  // 防抖滚动函数 - 使用滚动锁避免高频滚动，确保在内容稳定后再滚动
+  const debouncedScrollToBottom = () => {
+    // 清除之前的延迟滚动
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // 设置新的延迟滚动（50ms 防抖）
+    scrollTimeoutRef.current = setTimeout(() => {
+      scrollToBottom();
+      scrollTimeoutRef.current = null;
+    }, 50);
+  };
+
+  // 启动保底滚动定时器 - 极端情况兜底机制
+  const startFallbackScrollTimer = () => {
+    // 清除之前的保底定时器
+    if (fallbackScrollTimeoutRef.current) {
+      clearTimeout(fallbackScrollTimeoutRef.current);
+    }
+
+    // 设置 300ms 后的保底滚动
+    fallbackScrollTimeoutRef.current = setTimeout(() => {
+      // 强制滚动到底部（无条件执行）
+      scrollToBottom();
+      fallbackScrollTimeoutRef.current = null;
+    }, 300);
+  };
+
+  // 清除保底滚动定时器
+  const clearFallbackScrollTimer = () => {
+    if (fallbackScrollTimeoutRef.current) {
+      clearTimeout(fallbackScrollTimeoutRef.current);
+      fallbackScrollTimeoutRef.current = null;
+    }
   };
 
   // 处理用户滚动事件 - 智能吸附逻辑
@@ -61,6 +120,9 @@ const Home: React.FC = () => {
     if (!messagesContainerRef.current) return;
 
     const distanceFromBottom = getDistanceFromBottom();
+
+    // 用户主动滚动时，清除保底定时器（用户已经看到内容）
+    clearFallbackScrollTimer();
 
     // 智能吸附逻辑
     if (distanceFromBottom <= 100) {
@@ -75,7 +137,7 @@ const Home: React.FC = () => {
     // 在100px-150px之间保持当前状态，避免频繁切换
   };
 
-  // 智能滚动逻辑 - 支持吸附模式、流式输出跟随，并在错误消息出现时强制滚动到底部
+  // 智能滚动逻辑 - 支持吸附模式、流式输出跟随，使用滚动锁防抖机制 + 保底兜底
   useEffect(() => {
     const currentMessageCount = currentSession?.messages?.length || 0;
 
@@ -89,6 +151,19 @@ const Home: React.FC = () => {
     const hasContentUpdate = currentSession?.messages?.some(
       (msg) => msg.role === "assistant" && msg.isLoading
     );
+
+    // 更新流式输出状态
+    const wasStreaming = isStreaming;
+    setIsStreaming(hasContentUpdate);
+
+    // 流式输出状态变化处理
+    if (!wasStreaming && hasContentUpdate) {
+      // 开始流式输出：启动保底定时器
+      startFallbackScrollTimer();
+    } else if (wasStreaming && !hasContentUpdate) {
+      // 流式输出结束：清除保底定时器
+      clearFallbackScrollTimer();
+    }
 
     // 当最新消息是错误消息时，强制滚动到底部
     const hasErrorUpdate =
@@ -109,18 +184,19 @@ const Home: React.FC = () => {
         (!userHasScrolled && isNearBottom());
 
       if (shouldScroll) {
-        // 对于流式输出，使用更短的延迟以保持跟随效果
-        const delay = hasContentUpdate && !hasNewMessage ? 10 : 50;
-
-        const timeoutId = setTimeout(() => {
+        // 对于流式输出，使用防抖滚动避免高频更新
+        if (hasContentUpdate && !hasNewMessage) {
+          // 流式输出中：使用防抖滚动
+          debouncedScrollToBottom();
+        } else {
+          // 新消息或错误消息：立即滚动
           scrollToBottom();
-          // 仅在用户发送消息后重置标志
-          if (shouldAutoScroll) {
-            setShouldAutoScroll(false);
-          }
-        }, delay);
+        }
 
-        return () => clearTimeout(timeoutId);
+        // 仅在用户发送消息后重置标志
+        if (shouldAutoScroll) {
+          setShouldAutoScroll(false);
+        }
       }
     }
 
@@ -133,7 +209,20 @@ const Home: React.FC = () => {
     userHasScrolled,
     isStickToBottom,
     lastMessageCount,
+    isStreaming, // 添加 isStreaming 依赖以监听流式状态变化
   ]);
+
+  // 组件清理：清除滚动锁的 timeout 和保底定时器
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      if (fallbackScrollTimeoutRef.current) {
+        clearTimeout(fallbackScrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // 发送消息处理函数
   const handleSendMessage = async () => {
