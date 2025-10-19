@@ -28,6 +28,8 @@ export const useChatSessions = () => {
 
   // 防抖保存的引用
   const saveTimeoutRef = useRef<number | undefined>(undefined);
+  // 自动创建会话的延时器引用
+  const autoCreateTimeoutRef = useRef<number | undefined>(undefined);
 
   // 获取当前活跃会话
   const currentSession =
@@ -188,6 +190,12 @@ export const useChatSessions = () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
+
+    console.log("🎯 创建新会话", {
+      sessionId: newSession.id,
+      title: newSession.title,
+      timestamp: new Date(newSession.createdAt).toLocaleString()
+    });
 
     setSessions((prev) => {
       // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
@@ -478,6 +486,8 @@ export const useChatSessions = () => {
 
   // 智能新对话逻辑
   const handleNewChat = useCallback(() => {
+    console.log("🔄 触发新对话逻辑");
+    
     // 检查当前最新会话是否为空
     if (sessions.length > 0) {
       const latestSession = sessions.sort(
@@ -489,12 +499,21 @@ export const useChatSessions = () => {
 
       if (!hasUserMessages) {
         // 如果最新会话没有用户消息，直接切换到该会话
+        console.log("✅ 情况1：复用空会话 - 最新会话无用户消息，直接切换", {
+          sessionId: latestSession.id,
+          title: latestSession.title,
+          messageCount: latestSession.messages.length
+        });
         switchToSession(latestSession.id);
         return;
       }
     }
 
     // 否则创建新会话
+    console.log("🆕 情况1：创建新会话 - 用户主动点击新对话按钮", {
+      existingSessions: sessions.length,
+      reason: sessions.length === 0 ? "无现有会话" : "最新会话已有用户消息"
+    });
     createNewSession();
   }, [sessions, switchToSession, createNewSession]);
 
@@ -573,21 +592,59 @@ export const useChatSessions = () => {
   // 处理用户登出后的状态重置
   useEffect(() => {
     if (!authState.isAuthenticated && hasSyncedAfterLogin) {
-      console.log("用户登出，重置状态...");
+      console.log("👋 用户登出，重置状态...");
       setHasSyncedAfterLogin(false);
       setSessions([]);
       setCurrentSessionId(null);
+      console.log("🔄 情况3：登出后重新加载游客数据，将触发初始会话创建");
       // 重新加载游客数据
       loadFromStorage();
     }
   }, [authState.isAuthenticated, hasSyncedAfterLogin, loadFromStorage]);
 
-  // 如果没有会话，自动创建第一个（仅在游客模式或同步完成后）
+  // 如果没有会话，自动创建第一个（仅在游客模式或同步完成后）- 延时检测机制
   useEffect(() => {
-    if (sessions.length === 0 && currentSessionId === null) {
-      // 游客模式或已完成登录同步的情况下才创建新会话
+    // 清除之前的定时器
+    if (autoCreateTimeoutRef.current) {
+      clearTimeout(autoCreateTimeoutRef.current);
+      autoCreateTimeoutRef.current = undefined;
+    }
+
+    // 条件A：检查是否需要自动创建会话
+    const conditionA = sessions.length === 0 && currentSessionId === null;
+    
+    if (conditionA) {
+      // 游客模式或已完成登录同步的情况下才启动计时器
       if (!authState.isAuthenticated || hasSyncedAfterLogin) {
-        createNewSession();
+        console.log("⏰ 条件A满足，启动2秒延时检测", {
+          mode: authState.isAuthenticated ? "登录模式" : "游客模式",
+          hasSyncedAfterLogin,
+          sessionsLength: sessions.length,
+          currentSessionId
+        });
+
+        // 启动2秒计时器
+        autoCreateTimeoutRef.current = window.setTimeout(() => {
+          // 2秒后再次检测条件A
+          const stillNeedCreate = sessions.length === 0 && currentSessionId === null;
+          
+          if (stillNeedCreate) {
+            console.log("🚀 情况2：延时检测通过，自动创建初始会话", {
+              mode: authState.isAuthenticated ? "登录模式" : "游客模式",
+              hasSyncedAfterLogin,
+              reason: "2秒延时后条件A仍然成立"
+            });
+            createNewSession();
+          } else {
+            console.log("⏹️ 延时检测未通过，取消自动创建", {
+              sessionsLength: sessions.length,
+              currentSessionId,
+              reason: "2秒内条件A已不满足"
+            });
+          }
+          
+          autoCreateTimeoutRef.current = undefined;
+        }, 2000);
       }
     }
   }, [
@@ -610,6 +667,9 @@ export const useChatSessions = () => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+      }
+      if (autoCreateTimeoutRef.current) {
+        clearTimeout(autoCreateTimeoutRef.current);
       }
     };
   }, []);
