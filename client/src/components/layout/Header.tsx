@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined, LoginOutlined, LogoutOutlined } from "@ant-design/icons";
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  UserOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+} from "@ant-design/icons";
 import { Button, Dropdown, Avatar, Space } from "antd";
 import { useAuth } from "../../contexts/AuthContext";
 import { useChatContext } from "../../contexts/ChatContext";
@@ -27,7 +33,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
     try {
       await logout();
     } catch (error) {
-      console.error('登出失败:', error);
+      console.error("登出失败:", error);
     }
   };
 
@@ -43,18 +49,18 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
    */
   const userMenuItems = [
     {
-      key: 'profile',
+      key: "profile",
       icon: <UserOutlined />,
-      label: '个人信息',
+      label: "个人信息",
       disabled: true, // 暂时禁用，后续可扩展
     },
     {
-      type: 'divider' as const,
+      type: "divider" as const,
     },
     {
-      key: 'logout',
+      key: "logout",
       icon: <LogoutOutlined />,
-      label: '退出登录',
+      label: "退出登录",
       onClick: handleLogout,
     },
   ];
@@ -76,12 +82,12 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
                 <MenuFoldOutlined className="text-lg" />
               )}
             </button>
-            
+
             {/* 模型选择器 */}
             <ModelSelector
               value={currentModel}
               onChange={handleModelChange}
-              size="small"
+              size="middle"
               className="w-48"
             />
           </div>
@@ -98,11 +104,11 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
               <Dropdown
                 menu={{ items: userMenuItems }}
                 placement="bottomRight"
-                trigger={['click']}
+                trigger={["click"]}
               >
                 <Space className="cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
-                  <Avatar 
-                    size="small" 
+                  <Avatar
+                    size="small"
                     icon={<UserOutlined />}
                     className="bg-blue-500"
                   />
@@ -132,7 +138,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
         onCancel={() => setAuthModalVisible(false)}
         onSuccess={() => {
           // 登录成功后的回调，数据同步逻辑已在useChatSessions中处理
-          console.log('用户登录成功，数据同步将自动进行');
+          console.log("用户登录成功，数据同步将自动进行");
         }}
       />
     </>

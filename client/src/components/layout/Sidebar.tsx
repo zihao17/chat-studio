@@ -158,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
       case "history":
         // 历史对话内容
         return (
-          <div className="flex flex-col gap-y-1 pt-2 max-lg:hidden">
+          <div className="flex flex-col gap-y-1 pt-2">
             {sortedSessions.map((session) => (
               <div
                 key={session.id}

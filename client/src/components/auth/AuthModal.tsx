@@ -3,10 +3,16 @@
  * 提供登录和注册功能的统一弹窗界面
  */
 
-import { useState } from 'react';
-import { Modal, Form, Input, Button, Tabs, message, Divider } from 'antd';
-import { UserOutlined, MailOutlined, LockOutlined, LoginOutlined, UserAddOutlined } from '@ant-design/icons';
-import { useAuth } from '../../contexts/AuthContext';
+import { useState } from "react";
+import { Modal, Form, Input, Button, Tabs, message, Divider } from "antd";
+import {
+  UserOutlined,
+  MailOutlined,
+  LockOutlined,
+  LoginOutlined,
+  UserAddOutlined,
+} from "@ant-design/icons";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface AuthModalProps {
   visible: boolean;
@@ -26,9 +32,13 @@ interface RegisterFormData {
   confirmPassword: string;
 }
 
-export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalProps) {
+export default function AuthModal({
+  visible,
+  onCancel,
+  onSuccess,
+}: AuthModalProps) {
   const { login, register, state } = useAuth();
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [loginForm] = Form.useForm<LoginFormData>();
   const [registerForm] = Form.useForm<RegisterFormData>();
 
@@ -38,12 +48,12 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
   const handleLogin = async (values: LoginFormData) => {
     try {
       await login(values.email, values.password);
-      message.success('登录成功！');
+      message.success("登录成功！");
       loginForm.resetFields();
       onSuccess?.();
       onCancel();
     } catch (error: any) {
-      message.error(error.message || '登录失败');
+      message.error(error.message || "登录失败");
     }
   };
 
@@ -53,12 +63,12 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
   const handleRegister = async (values: RegisterFormData) => {
     try {
       await register(values.username, values.email, values.password);
-      message.success('注册成功！');
+      message.success("注册成功！");
       registerForm.resetFields();
       onSuccess?.();
       onCancel();
     } catch (error: any) {
-      message.error(error.message || '注册失败');
+      message.error(error.message || "注册失败");
     }
   };
 
@@ -75,7 +85,7 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
    * 切换标签页时重置表单
    */
   const handleTabChange = (key: string) => {
-    setActiveTab(key as 'login' | 'register');
+    setActiveTab(key as "login" | "register");
     loginForm.resetFields();
     registerForm.resetFields();
   };
@@ -94,8 +104,8 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
         name="email"
         label="邮箱"
         rules={[
-          { required: true, message: '请输入邮箱' },
-          { type: 'email', message: '请输入有效的邮箱地址' }
+          { required: true, message: "请输入邮箱" },
+          { type: "email", message: "请输入有效的邮箱地址" },
         ]}
       >
         <Input
@@ -109,8 +119,8 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
         name="password"
         label="密码"
         rules={[
-          { required: true, message: '请输入密码' },
-          { min: 6, message: '密码长度至少为6位' }
+          { required: true, message: "请输入密码" },
+          { min: 6, message: "密码长度至少为6位" },
         ]}
       >
         <Input.Password
@@ -149,10 +159,13 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
         name="username"
         label="用户名"
         rules={[
-          { required: true, message: '请输入用户名' },
-          { min: 2, message: '用户名长度至少为2位' },
-          { max: 20, message: '用户名长度不能超过20位' },
-          { pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5]+$/, message: '用户名只能包含字母、数字、下划线和中文' }
+          { required: true, message: "请输入用户名" },
+          { min: 2, message: "用户名长度至少为2位" },
+          { max: 20, message: "用户名长度不能超过20位" },
+          {
+            pattern: /^[a-zA-Z0-9_\u4e00-\u9fa5]+$/,
+            message: "用户名只能包含字母、数字、下划线和中文",
+          },
         ]}
       >
         <Input
@@ -166,8 +179,8 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
         name="email"
         label="邮箱"
         rules={[
-          { required: true, message: '请输入邮箱' },
-          { type: 'email', message: '请输入有效的邮箱地址' }
+          { required: true, message: "请输入邮箱" },
+          { type: "email", message: "请输入有效的邮箱地址" },
         ]}
       >
         <Input
@@ -181,9 +194,9 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
         name="password"
         label="密码"
         rules={[
-          { required: true, message: '请输入密码' },
-          { min: 6, message: '密码长度至少为6位' },
-          { max: 50, message: '密码长度不能超过50位' }
+          { required: true, message: "请输入密码" },
+          { min: 6, message: "密码长度至少为6位" },
+          { max: 50, message: "密码长度不能超过50位" },
         ]}
       >
         <Input.Password
@@ -196,15 +209,15 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
       <Form.Item
         name="confirmPassword"
         label="确认密码"
-        dependencies={['password']}
+        dependencies={["password"]}
         rules={[
-          { required: true, message: '请确认密码' },
+          { required: true, message: "请确认密码" },
           ({ getFieldValue }) => ({
             validator(_, value) {
-              if (!value || getFieldValue('password') === value) {
+              if (!value || getFieldValue("password") === value) {
                 return Promise.resolve();
               }
-              return Promise.reject(new Error('两次输入的密码不一致'));
+              return Promise.reject(new Error("两次输入的密码不一致"));
             },
           }),
         ]}
@@ -234,7 +247,7 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
   // 标签页配置
   const tabItems = [
     {
-      key: 'login',
+      key: "login",
       label: (
         <span className="flex items-center gap-2 px-2">
           <LoginOutlined />
@@ -244,7 +257,7 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
       children: LoginForm,
     },
     {
-      key: 'register',
+      key: "register",
       label: (
         <span className="flex items-center gap-2 px-2">
           <UserAddOutlined />
@@ -262,9 +275,6 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
           <div className="text-xl font-semibold text-gray-800">
             欢迎使用 Chat Studio
           </div>
-          <div className="text-sm text-gray-500 mt-1">
-            AI 对话平台 · 智能助手
-          </div>
         </div>
       }
       open={visible}
@@ -277,8 +287,6 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
       className="auth-modal"
     >
       <div className="py-4">
-        <Divider className="my-4" />
-        
         <Tabs
           activeKey={activeTab}
           onChange={handleTabChange}
@@ -287,13 +295,6 @@ export default function AuthModal({ visible, onCancel, onSuccess }: AuthModalPro
           items={tabItems}
           className="auth-tabs"
         />
-
-        <Divider className="my-4" />
-        
-        <div className="text-center text-xs text-gray-400">
-          <p>登录即表示您同意我们的服务条款和隐私政策</p>
-          <p className="mt-1">您的数据将被安全加密存储</p>
-        </div>
       </div>
     </Modal>
   );
