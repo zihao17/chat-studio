@@ -91,8 +91,8 @@ function validateEnvironment() {
   if (process.env.FRONTEND_URL) {
     console.log(`  - 前端域名: ${process.env.FRONTEND_URL}`);
   }
-  if (process.env.RENDER) {
-    console.log(`  - Render环境: 是`);
+  if (process.env.RAILWAY_ENVIRONMENT_NAME) {
+    console.log(`  - Railway环境: ${process.env.RAILWAY_ENVIRONMENT_NAME}`);
   }
 }
 

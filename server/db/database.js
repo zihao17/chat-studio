@@ -9,14 +9,14 @@ const fs = require('fs');
 
 // 数据库文件路径 - 根据环境动态配置
 function getDatabasePath() {
-  // Render 生产环境使用 /var/data 目录
-  if (process.env.RENDER) {
-    const renderDataDir = '/var/data';
+  // Railway 生产环境使用 /var/data 目录
+  if (process.env.RAILWAY_ENVIRONMENT_NAME) {
+    const railwayDataDir = '/var/data';
     // 确保目录存在
-    if (!fs.existsSync(renderDataDir)) {
-      fs.mkdirSync(renderDataDir, { recursive: true });
+    if (!fs.existsSync(railwayDataDir)) {
+      fs.mkdirSync(railwayDataDir, { recursive: true });
     }
-    return path.join(renderDataDir, 'chat_studio.db');
+    return path.join(railwayDataDir, 'chat_studio.db');
   }
   
   // 本地开发环境使用项目目录下的 data 文件夹
