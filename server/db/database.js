@@ -5,25 +5,51 @@
 
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-// 数据库文件路径
-const DB_PATH = path.join(__dirname, 'chat_studio.db');
+// 数据库文件路径 - 根据环境动态配置
+function getDatabasePath() {
+  // Render 生产环境使用 /var/data 目录
+  if (process.env.RENDER) {
+    const renderDataDir = '/var/data';
+    // 确保目录存在
+    if (!fs.existsSync(renderDataDir)) {
+      fs.mkdirSync(renderDataDir, { recursive: true });
+    }
+    return path.join(renderDataDir, 'chat_studio.db');
+  }
+  
+  // 本地开发环境使用项目目录下的 data 文件夹
+  const localDataDir = path.join(__dirname, '..', 'data');
+  if (!fs.existsSync(localDataDir)) {
+    fs.mkdirSync(localDataDir, { recursive: true });
+  }
+  return path.join(localDataDir, 'chat_studio.db');
+}
+
+const DB_PATH = getDatabasePath();
 
 /**
  * 创建数据库连接
  * @returns {sqlite3.Database} 数据库实例
  */
 function createConnection() {
+  console.log(`📍 数据库路径: ${DB_PATH}`);
+  
   const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) {
       console.error('❌ 数据库连接失败:', err.message);
+      console.error('数据库路径:', DB_PATH);
       process.exit(1);
     }
     console.log('✅ SQLite 数据库连接成功');
+    console.log(`💾 数据库文件: ${DB_PATH}`);
   });
 
   // 启用 WAL 模式提升并发性能
-  db.run('PRAGMA journal_mode = WAL;');
+  db.run('PRAGMA journal_mode = WAL;', (err) => {
+    if (err) console.error('WAL模式设置失败:', err.message);
+  });
   db.run('PRAGMA synchronous = NORMAL;');
   db.run('PRAGMA cache_size = 1000;');
   db.run('PRAGMA foreign_keys = ON;');

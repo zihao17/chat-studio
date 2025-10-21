@@ -28,6 +28,13 @@ function validateEnvironment() {
     'DASHSCOPE_BASE_URL'
   ];
 
+  // JWT密钥校验
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ 缺少 JWT_SECRET 环境变量');
+    console.error('请在 .env 文件中设置 JWT_SECRET');
+    process.exit(1);
+  }
+
   // 可选的环境变量（至少需要一个AI服务配置）
   const optionalEnvVars = [
     'MODELSCOPE_API_KEY',
@@ -48,6 +55,19 @@ function validateEnvironment() {
     process.exit(1);
   }
 
+  // 生产环境额外检查
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.FRONTEND_URL) {
+      console.warn('⚠️  生产环境建议设置 FRONTEND_URL 环境变量');
+    }
+    
+    // 检查JWT密钥强度
+    if (process.env.JWT_SECRET.length < 32) {
+      console.error('❌ JWT_SECRET 长度不足32位，安全性不够');
+      process.exit(1);
+    }
+  }
+
   // 校验 API Key 格式
   if (!process.env.DASHSCOPE_API_KEY.startsWith('sk-')) {
     console.error('❌ DASHSCOPE_API_KEY 格式错误，应以 "sk-" 开头');
@@ -62,15 +82,18 @@ function validateEnvironment() {
 
   console.log('✅ 环境变量校验通过');
   
-  // 显示已配置的AI服务
-  const configuredServices = ['阿里百炼(DashScope)'];
-  if (process.env.MODELSCOPE_API_KEY && process.env.MODELSCOPE_BASE_URL) {
-    configuredServices.push('魔搭社区(ModelScope)');
+  // 显示配置信息（隐藏敏感信息）
+  console.log('📋 当前配置:');
+  console.log(`  - 端口: ${process.env.PORT || 3001}`);
+  console.log(`  - 环境: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`  - JWT密钥: ${process.env.JWT_SECRET.substring(0, 8)}...`);
+  console.log(`  - 通义千问API: ${process.env.DASHSCOPE_API_KEY.substring(0, 8)}...`);
+  if (process.env.FRONTEND_URL) {
+    console.log(`  - 前端域名: ${process.env.FRONTEND_URL}`);
   }
-  if (process.env.OPENAI_API_KEY && process.env.OPENAI_BASE_URL) {
-    configuredServices.push('OpenAI');
+  if (process.env.RENDER) {
+    console.log(`  - Render环境: 是`);
   }
-  console.log(`🤖 已配置的AI服务: ${configuredServices.join(', ')}`);
 }
 
 // 执行环境变量校验
@@ -79,7 +102,7 @@ validateEnvironment();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS 配置 - 支持多个本地开发端口
+// CORS 配置 - 支持多个本地开发端口和生产环境
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174', 
@@ -87,6 +110,12 @@ const allowedOrigins = [
   'http://localhost:5176',
   'http://localhost:5177'
 ];
+
+// 如果设置了 FRONTEND_URL 环境变量，添加到允许的源列表
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+  console.log(`🌐 添加前端域名到CORS白名单: ${process.env.FRONTEND_URL}`);
+}
 
 // 中间件配置
 app.use(cors({
