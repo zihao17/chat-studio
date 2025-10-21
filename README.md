@@ -5,6 +5,24 @@
     <a href="#中文">🇨🇳 中文</a> | 
     <a href="README.en.md">🇺🇸 English</a>
   </p>
+  
+  <!-- GitHub Badges -->
+  <p>
+    <a href="https://github.com/zihao17/chat-studio/stargazers">
+      <img src="https://img.shields.io/github/stars/zihao17/chat-studio?style=social" alt="GitHub stars">
+    </a>
+    <a href="https://github.com/zihao17/chat-studio/network/members">
+      <img src="https://img.shields.io/github/forks/zihao17/chat-studio?style=social" alt="GitHub forks">
+    </a>
+    <a href="https://github.com/zihao17/chat-studio/watchers">
+      <img src="https://img.shields.io/github/watchers/zihao17/chat-studio?style=social" alt="GitHub watchers">
+    </a>
+  </p>
+  
+  <!-- Star 呼吁 -->
+  <p>
+    <strong>🌟 如果这个项目对你有帮助，请给个 Star 支持一下！Welcome Star! 🌟</strong>
+  </p>
 </div>
 
 <div align="center">

@@ -16,6 +16,7 @@ const { getDatabase, initializeTables, closeDatabase } = require('./db/database'
 const chatRoutes = require('./routes/chat');
 const { router: authRoutes } = require('./routes/auth');
 const chatSyncRoutes = require('./routes/chatSync');
+const configRoutes = require('./routes/config');
 
 /**
  * 环境变量校验函数
@@ -121,9 +122,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 注册路由
+// 路由配置
 app.use('/api/auth', authRoutes);
 app.use('/api/chat-sync', chatSyncRoutes);
+app.use('/api/config', configRoutes);
 app.use('/api', chatRoutes);
 
 // API 路由占位符

@@ -5,6 +5,7 @@
 
 const express = require("express");
 const OpenAI = require("openai");
+const { getModelscopeApiKey } = require("../utils/keyManager");
 const router = express.Router();
 
 /**
@@ -18,13 +19,16 @@ function getServiceType(model) {
     "qwen3-max",
     "qwen-flash-2025-07-28",
     "qwen3-vl-flash",
-    "deepseek-v3.2-exp",
   ];
 
   // 魔搭ModelScope模型列表
   const modelscopeModels = [
     "Qwen/Qwen3-Next-80B-A3B-Instruct",
-    "ZhipuAI/GLM-4.5",
+    "ZhipuAI/GLM-4.6",
+    "deepseek-ai/DeepSeek-R1-0528",
+    "Qwen/Qwen3-235B-A22B",
+    "Qwen/Qwen3-8B",
+    "deepseek-ai/DeepSeek-V3.2-Exp",
   ];
 
   // OpenAI 模型列表
@@ -37,8 +41,8 @@ function getServiceType(model) {
   } else if (openaiModels.includes(model)) {
     return "openai";
   } else {
-    // 默认使用通义千问
-    return "dashscope";
+    // 默认使用Qwen Next 80B模型
+    return "modelscope";
   }
 }
 
@@ -55,7 +59,7 @@ function createOpenAIClient(serviceType) {
     });
   } else if (serviceType === "modelscope") {
     return new OpenAI({
-      apiKey: process.env.MODELSCOPE_API_KEY,
+      apiKey: getModelscopeApiKey(), // 使用key管理器获取密钥
       baseURL: process.env.MODELSCOPE_BASE_URL,
     });
   } else if (serviceType === "openai") {
@@ -173,8 +177,8 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             max_tokens,
             // 添加 stream_options 以获取 token 统计信息
             stream_options: {
-              include_usage: true
-            }
+              include_usage: true,
+            },
           },
           {
             signal: controller.signal,
@@ -187,7 +191,7 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             // 发送 SSE 格式数据
             res.write(`data: ${JSON.stringify({ content })}\n\n`);
           }
-          
+
           // 收集token使用信息
           if (chunk.usage) {
             totalTokens = chunk.usage.total_tokens || 0;
@@ -200,15 +204,17 @@ router.post("/chat", validateChatRequest, async (req, res) => {
         const responseTime = ((Date.now() - startTime) / 1000).toFixed(1);
 
         // 发送统计信息
-        res.write(`data: ${JSON.stringify({ 
-          stats: {
-            model,
-            responseTime: `${responseTime}s`,
-            totalTokens,
-            promptTokens,
-            completionTokens
-          }
-        })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({
+            stats: {
+              model,
+              responseTime: `${responseTime}s`,
+              totalTokens,
+              promptTokens,
+              completionTokens,
+            },
+          })}\n\n`
+        );
 
         res.write("data: [DONE]\n\n");
         res.end();
@@ -228,7 +234,7 @@ router.post("/chat", validateChatRequest, async (req, res) => {
         );
 
         const content = completion.choices[0]?.message?.content || "";
-        
+
         // 计算响应时间
         const responseTime = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -241,8 +247,8 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             responseTime: `${responseTime}s`,
             totalTokens: completion.usage?.total_tokens || 0,
             promptTokens: completion.usage?.prompt_tokens || 0,
-            completionTokens: completion.usage?.completion_tokens || 0
-          }
+            completionTokens: completion.usage?.completion_tokens || 0,
+          },
         });
       }
     } finally {

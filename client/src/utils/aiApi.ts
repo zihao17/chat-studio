@@ -63,7 +63,7 @@ export async function callAIChatStream(
     promptTokens: number;
     completionTokens: number;
   }) => void,
-  model: string = "qwen-max",
+  model: string = "Qwen/Qwen3-Next-80B-A3B-Instruct",
   abortController?: AbortController
 ): Promise<void> {
   try {

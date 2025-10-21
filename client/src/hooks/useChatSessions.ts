@@ -20,7 +20,7 @@ export const useChatSessions = () => {
   const chatSync = useChatSync();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [currentModel, setCurrentModel] = useState<string>("qwen-max"); // 默认模型
+  const [currentModel, setCurrentModel] = useState<string>("Qwen/Qwen3-Next-80B-A3B-Instruct"); // 默认模型
   // 存储每个会话的AbortController，用于中断流式响应
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // 标记是否已经进行过登录后的数据同步

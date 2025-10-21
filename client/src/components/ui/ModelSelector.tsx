@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Select } from "antd";
+import { Select, message } from "antd";
 import { RobotOutlined } from "@ant-design/icons";
+import { getAvailableModels, type ModelConfig } from "../../utils/configApi";
 
 const { Option } = Select;
 
@@ -13,50 +14,49 @@ export interface ModelConfig {
   category: "dashscope" | "modelscope" | "openai";
 }
 
-// 可用模型列表
-export const AVAILABLE_MODELS: ModelConfig[] = [
-  // 阿里百炼 DashScope 模型
+// 默认可用模型列表（作为备用）
+const DEFAULT_MODELS: ModelConfig[] = [
+  // 魔搭社区模型（总是可用，因为有备用密钥）
   {
-    id: "qwen3-max",
-    name: "Qwen3 Max",
-    provider: "阿里百炼",
-    description: "通义千问3代超大规模语言模型，适合复杂推理",
-    category: "dashscope",
+    id: "ZhipuAI/GLM-4.6",
+    name: "GLM-4.6",
+    provider: "魔搭社区",
+    description: "智谱 355B旗舰模型，代码推理全能，上下文长达200K",
+    category: "modelscope",
   },
   {
-    id: "qwen-flash-2025-07-28",
-    name: "Qwen3 Flash",
-    provider: "阿里百炼",
-    description: "通义千问3代快速版，响应迅速",
-    category: "dashscope",
+    id: "deepseek-ai/DeepSeek-R1-0528",
+    name: "DeepSeek-R1",
+    provider: "魔搭社区",
+    description: "深度求索 671B 开源推理模型，推理能力强",
+    category: "modelscope",
   },
   {
-    id: "qwen3-vl-flash",
-    name: "Qwen3 VL Flash",
-    provider: "阿里百炼",
-    description: "通义千问3代视觉语言模型，支持图像理解",
-    category: "dashscope",
+    id: "deepseek-ai/DeepSeek-V3.2-Exp",
+    name: "DeepSeek-V3.2-Exp",
+    provider: "魔搭社区",
+    description: "实验性稀疏注意力模型，长文本效率飙升",
+    category: "modelscope",
   },
   {
-    id: "deepseek-v3.2-exp",
-    name: "DeepSeek V3.2 Exp",
-    provider: "阿里百炼",
-    description: "DeepSeek实验版模型，探索前沿AI能力",
-    category: "dashscope",
+    id: "Qwen/Qwen3-235B-A22B",
+    name: "Qwen3-235B",
+    provider: "魔搭社区",
+    description: "235B MoE 开源模型，混合思考模式，推理成本低",
+    category: "modelscope",
   },
-  // 魔搭社区 ModelScope 模型
   {
     id: "Qwen/Qwen3-Next-80B-A3B-Instruct",
     name: "Qwen3 Next 80B",
     provider: "魔搭社区",
-    description: "通义千问3代80B参数模型，性能强劲",
+    description: "80B 超稀疏 MoE 模型，训练成本降90%，推理速度飙升",
     category: "modelscope",
   },
   {
-    id: "ZhipuAI/GLM-4.5",
-    name: "GLM-4.5",
+    id: "Qwen/Qwen3-8B",
+    name: "Qwen3-8B",
     provider: "魔搭社区",
-    description: "智谱AI GLM-4.5模型，支持多模态对话",
+    description: "阿里 8B 开源模型，适配中小场景，部署门槛低",
     category: "modelscope",
   },
   // OpenAI 模型（暂无可用）
@@ -72,10 +72,10 @@ interface ModelSelectorProps {
 
 /**
  * 模型选择器组件
- * 支持多个AI服务商的模型切换
+ * 支持多个AI服务商的模型切换，根据后端配置动态加载可用模型
  */
 const ModelSelector: React.FC<ModelSelectorProps> = ({
-  value = "qwen3-max",
+  value = "Qwen/Qwen3-Next-80B-A3B-Instruct", // 默认使用Qwen Next 80B模型
   onChange,
   disabled = false,
   size = "middle",
@@ -87,6 +87,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   const [hoveredOption, setHoveredOption] = useState<string | null>(null);
   // 延迟隐藏的定时器引用
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 可用模型列表
+  const [availableModels, setAvailableModels] = useState<ModelConfig[]>(DEFAULT_MODELS);
+  // 加载状态
+  const [loading, setLoading] = useState(false);
 
   // 清理定时器
   useEffect(() => {
@@ -97,8 +101,34 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     };
   }, []);
 
+  // 组件挂载时获取可用模型
+  useEffect(() => {
+    const fetchAvailableModels = async () => {
+      try {
+        setLoading(true);
+        const response = await getAvailableModels();
+        if (response.success && response.data.models.length > 0) {
+          setAvailableModels(response.data.models);
+          
+          // 如果用户使用备用密钥，显示提示
+          if (response.data.configuration.usingFallback) {
+            message.info('当前使用内置免费密钥，仅支持魔搭社区模型', 3);
+          }
+        }
+      } catch (error) {
+        console.error('获取可用模型失败:', error);
+        message.warning('获取模型列表失败，使用默认模型');
+        // 保持使用默认模型列表
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAvailableModels();
+  }, []);
+
   // 根据服务商分组模型
-  const groupedModels = AVAILABLE_MODELS.reduce((groups, model) => {
+  const groupedModels = availableModels.reduce((groups, model) => {
     const provider = model.provider;
     if (!groups[provider]) {
       groups[provider] = [];
@@ -113,14 +143,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   }
 
   // 获取当前选中模型的信息
-  const currentModel = AVAILABLE_MODELS.find((model) => model.id === value);
+  const currentModel = availableModels.find((model) => model.id === value);
 
   // 获取当前悬停模型的信息
   const hoveredModel = hoveredOption
-    ? AVAILABLE_MODELS.find((model) => model.id === hoveredOption)
+    ? availableModels.find((model) => model.id === hoveredOption)
     : null;
-
-  // 显示的模型信息（优先显示悬停的，否则显示当前选中的）
   const displayModel = hoveredModel || currentModel;
 
   // 处理鼠标进入选择器
@@ -159,12 +187,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       <Select
         value={value}
         onChange={onChange}
-        disabled={disabled}
+        disabled={disabled || loading}
         size={size}
         open={open}
         onDropdownVisibleChange={setOpen}
         className={`model-selector ${className}`}
-        placeholder="选择AI模型"
+        placeholder={loading ? "加载模型中..." : "选择AI模型"}
         suffixIcon={<RobotOutlined />}
         dropdownRender={(menu) => (
           <div className="model-selector-dropdown">
