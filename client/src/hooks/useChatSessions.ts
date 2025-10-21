@@ -55,23 +55,63 @@ export const useChatSessions = () => {
         abortController.abort();
         abortControllersRef.current.delete(sessionId);
 
-        // 立即清除会话的加载状态
-        setSessionLoading(sessionId, false);
-
-        // 查找并更新正在加载的消息
+        // 查找并更新正在加载的消息，同时清除会话的加载状态
         const session = sessions.find((s) => s.id === sessionId);
         if (session) {
           const loadingMessage = session.messages.find((m) => m.isLoading);
           if (loadingMessage) {
-            updateMessage(sessionId, loadingMessage.id, {
-              content: loadingMessage.content + "\n\n[生成已停止]",
-              isLoading: false,
-            });
+            // 如果消息内容为空或只有空白字符，删除这条消息
+            if (!loadingMessage.content || !loadingMessage.content.trim()) {
+              // 删除空的加载消息，避免影响后续请求
+              setSessions((prevSessions) =>
+                prevSessions.map((s) =>
+                  s.id === sessionId
+                    ? {
+                        ...s,
+                        messages: s.messages.filter((m) => m.id !== loadingMessage.id),
+                        isLoading: false, // 清除会话加载状态
+                        updatedAt: Date.now(),
+                      }
+                    : s
+                )
+              );
+            } else {
+              // 如果有内容，添加停止标记
+              setSessions((prevSessions) =>
+                prevSessions.map((s) =>
+                  s.id === sessionId
+                    ? {
+                        ...s,
+                        messages: s.messages.map((msg) =>
+                          msg.id === loadingMessage.id
+                            ? {
+                                ...msg,
+                                content: msg.content + "\n\n[生成已停止]",
+                                isLoading: false,
+                              }
+                            : msg
+                        ),
+                        isLoading: false, // 清除会话加载状态
+                        updatedAt: Date.now(),
+                      }
+                    : s
+                )
+              );
+            }
+          } else {
+            // 如果没有找到加载中的消息，只清除会话加载状态
+            setSessions((prevSessions) =>
+              prevSessions.map((s) =>
+                s.id === sessionId
+                  ? { ...s, isLoading: false, updatedAt: Date.now() }
+                  : s
+              )
+            );
           }
         }
       }
     },
-    [sessions]
+    [sessions, setSessions]
   );
 
   // 防抖保存到localStorage（仅在游客模式下）
@@ -385,7 +425,7 @@ export const useChatSessions = () => {
         // 准备发送给AI的消息历史
         const chatMessages: ChatMessage[] =
           session?.messages
-            .filter((m) => !m.isLoading)
+            .filter((m) => !m.isLoading && m.content && m.content.trim()) // 过滤掉加载中的消息和空内容消息
             .map((m) => ({
               role: m.role,
               content: m.content,
