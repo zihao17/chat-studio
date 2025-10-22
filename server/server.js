@@ -129,7 +129,8 @@ const allowedOrigins = [
   'http://localhost:3001',  // 添加常用的本地开发端口
   'http://127.0.0.1:5173',  // 添加 127.0.0.1 地址
   'http://127.0.0.1:3000',  // 添加 127.0.0.1 地址
-  'https://chat-studio-git-master-zihao17s-projects.vercel.app'  // Vercel 部署域名
+  'https://chat-studio-git-master-zihao17s-projects.vercel.app',  // Vercel 部署域名1
+  'https://chat-studio-eight.vercel.app'  // Vercel 部署域名2
 ];
 
 // 添加前端域名到 CORS 白名单
@@ -145,16 +146,7 @@ if (isZeabur && !process.env.FRONTEND_URL) {
 
 // 中间件配置
 app.use(cors({
-  origin: function (origin, callback) {
-    // 允许没有 origin 的请求（如移动应用、Postman等）
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS 策略不允许此来源'));
-    }
-  },
+  origin: '*', // 临时设置为通配符，方便调试多个 Vercel 域名
   credentials: true
 }));
 
