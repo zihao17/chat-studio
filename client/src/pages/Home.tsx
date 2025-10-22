@@ -28,11 +28,11 @@ const Home: React.FC = () => {
   // 智能吸附状态：用户是否希望跟随最新消息
   const [isStickToBottom, setIsStickToBottom] = useState(true);
   // 滚动锁：防抖延迟滚动的 timeout ID
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
   // 流式输出状态：标记是否正在接收流式数据
   const [isStreaming, setIsStreaming] = useState(false);
   // 保底滚动定时器：极端情况下的兜底机制
-  const fallbackScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fallbackScrollTimeoutRef = useRef<number | null>(null);
 
   // 从Context获取会话状态和方法
   const {
@@ -154,7 +154,7 @@ const Home: React.FC = () => {
 
     // 更新流式输出状态
     const wasStreaming = isStreaming;
-    setIsStreaming(hasContentUpdate);
+    setIsStreaming(!!hasContentUpdate);
 
     // 流式输出状态变化处理
     if (!wasStreaming && hasContentUpdate) {

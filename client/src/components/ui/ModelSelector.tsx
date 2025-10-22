@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Select, message } from "antd";
 import { RobotOutlined } from "@ant-design/icons";
-import { getAvailableModels, type ModelConfig } from "../../utils/configApi";
+import { getAvailableModels } from "../../utils/configApi";
 
 const { Option } = Select;
 
@@ -86,7 +86,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   // 当前悬停的选项ID
   const [hoveredOption, setHoveredOption] = useState<string | null>(null);
   // 延迟隐藏的定时器引用
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hideTimeoutRef = useRef<number | null>(null);
   // 可用模型列表
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>(DEFAULT_MODELS);
   // 加载状态

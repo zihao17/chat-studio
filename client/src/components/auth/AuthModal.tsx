@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Modal, Form, Input, Button, Tabs, message, Divider } from "antd";
+import { Modal, Form, Input, Button, Tabs, message } from "antd";
 import {
   UserOutlined,
   MailOutlined,
