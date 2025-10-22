@@ -128,7 +128,8 @@ const allowedOrigins = [
   'http://localhost:3000',  // 添加常用的本地开发端口
   'http://localhost:3001',  // 添加常用的本地开发端口
   'http://127.0.0.1:5173',  // 添加 127.0.0.1 地址
-  'http://127.0.0.1:3000'   // 添加 127.0.0.1 地址
+  'http://127.0.0.1:3000',  // 添加 127.0.0.1 地址
+  'https://chat-studio-git-master-zihao17s-projects.vercel.app'  // Vercel 部署域名
 ];
 
 // 添加前端域名到 CORS 白名单
