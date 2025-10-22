@@ -6,6 +6,17 @@
     <a href="#english">🇺🇸 English</a>
   </p>
   
+  <!-- Live Demo -->
+[![Live Demo](https://img.shields.io/badge/✨_LiveDemo-Chat_Studio-007ACC?style=flat&logo=vercel)](https://chat-studio-pzh.vercel.app/)
+
+  <p>
+    <strong>👉 Live Demo:</strong>
+    <a href="https://chat-studio-pzh.vercel.app/" target="_blank">
+      <code>https://chat-studio-pzh.vercel.app/</code>
+    </a>
+    <br>
+  </p>
+  
   <!-- GitHub Badges -->
   <p>
     <a href="https://github.com/zihao17/chat-studio/stargazers">
@@ -19,9 +30,10 @@
     </a>
   </p>
   
-  <!-- Star Call-to-Action -->
+  <!-- Star Call-to-Action & Feedback -->
   <p>
-    <strong>🌟 If this project helps you, please give it a Star! Welcome Star! 🌟</strong>
+    <strong> If this project helps you, please give it a Star!🌟</strong><br>
+    <strong>Welcome to share your valuable suggestions and feature requests to help us improve!</strong>
   </p>
 </div>
 

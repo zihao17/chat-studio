@@ -6,6 +6,17 @@
     <a href="README.en.md">🇺🇸 English</a>
   </p>
   
+  <!-- 在线体验 -->
+[![Live Demo](https://img.shields.io/badge/✨_在线体验-Chat_Studio-007ACC?style=flat&logo=vercel)](https://chat-studio-pzh.vercel.app/)
+
+  <p>
+    <strong>👉 在线体验：</strong>
+    <a href="https://chat-studio-pzh.vercel.app/" target="_blank">
+      <code>https://chat-studio-pzh.vercel.app/</code>
+    </a>
+    <br>
+  </p>
+
   <!-- GitHub Badges -->
   <p>
     <a href="https://github.com/zihao17/chat-studio/stargazers">
@@ -19,9 +30,10 @@
     </a>
   </p>
   
-  <!-- Star 呼吁 -->
+  <!-- Star 呼吁与建议征集 -->
   <p>
-    <strong>🌟 如果这个项目对你有帮助，请给个 Star 支持一下！Welcome Star! 🌟</strong>
+    <strong> 如果这个项目对你有帮助，请给个 Star🌟 支持一下！</strong><br>
+    <strong>欢迎提出宝贵建议和功能需求，让我们一起完善这个项目！</strong>
   </p>
 </div>
 
