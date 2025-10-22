@@ -179,7 +179,27 @@ app.use('/api/chat-sync', chatSyncRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api', chatRoutes);
 
-// 根路径信息
+// 根路径重定向到 API 信息
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Chat Studio API Server',
+    version: '1.0.0',
+    platform: isZeabur ? 'Zeabur' : isRailway ? 'Railway' : 'Local',
+    environment: process.env.NODE_ENV || 'development',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      api_info: '/api',
+      chat: '/api/chat',
+      auth: '/api/auth',
+      config: '/api/config',
+      chatSync: '/api/chat-sync'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API 根路径信息
 app.get('/api', (req, res) => {
   res.json({
     message: 'Chat Studio API Server',
