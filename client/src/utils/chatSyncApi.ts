@@ -6,8 +6,8 @@
 import axios from 'axios';
 import type { ChatSession } from '../types/chat';
 
-// API 基础配置
-const API_BASE_URL = 'http://localhost:3001/api';
+// API 基础配置 - 使用环境变量
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api`;
 
 // 配置 axios 默认设置
 axios.defaults.withCredentials = true;

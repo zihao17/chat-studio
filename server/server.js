@@ -118,13 +118,17 @@ validateEnvironment();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS 配置 - 针对不同部署平台优化
+// CORS 允许的来源列表
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174', 
   'http://localhost:5175',
   'http://localhost:5176',
-  'http://localhost:5177'
+  'http://localhost:5177',
+  'http://localhost:3000',  // 添加常用的本地开发端口
+  'http://localhost:3001',  // 添加常用的本地开发端口
+  'http://127.0.0.1:5173',  // 添加 127.0.0.1 地址
+  'http://127.0.0.1:3000'   // 添加 127.0.0.1 地址
 ];
 
 // 添加前端域名到 CORS 白名单

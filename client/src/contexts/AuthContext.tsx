@@ -94,8 +94,8 @@ interface AuthContextType {
 // 创建认证上下文
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// API 基础配置
-const API_BASE_URL = 'http://localhost:3001/api';
+// API 基础配置 - 使用环境变量
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api`;
 
 // 配置 axios 默认设置
 axios.defaults.withCredentials = true;

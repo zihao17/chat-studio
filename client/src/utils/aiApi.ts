@@ -1,5 +1,5 @@
-// 本地后端 API 配置
-const API_BASE_URL = "http://localhost:3001";
+// API 基础配置 - 使用环境变量
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 // 消息类型定义
 export interface ChatMessage {

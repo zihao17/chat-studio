@@ -21,6 +21,10 @@ dist-ssr
 .env.test.local
 .env.production.local
 
+# 客户端环境变量（敏感配置）
+client/.env.local
+client/.env.*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
