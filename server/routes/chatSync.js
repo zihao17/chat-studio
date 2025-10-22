@@ -4,7 +4,6 @@
  */
 
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
 const { getDatabase } = require('../db/database');
 const { authenticateToken } = require('./auth');
 

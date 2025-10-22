@@ -13,8 +13,8 @@ RUN npm ci --only=production
 # 复制应用源代码
 COPY . .
 
-# 创建数据目录
-RUN mkdir -p data db
+# 创建数据目录并设置权限
+RUN mkdir -p data && chmod 755 data
 
 # 暴露端口
 EXPOSE 3001

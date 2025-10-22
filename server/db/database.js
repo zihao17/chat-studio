@@ -3,28 +3,38 @@
  * 使用 WAL 模式提升并发性能
  */
 
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+const sqlite3 = require("sqlite3").verbose();
+const path = require("path");
+const fs = require("fs");
 
 // 数据库文件路径 - 根据环境动态配置
 function getDatabasePath() {
+  // Zeabur 生产环境使用 /var/data 目录
+  if (process.env.ZEABUR || process.env.ZEABUR_ENVIRONMENT_NAME) {
+    const zeaburDataDir = "/var/data";
+    // 确保目录存在
+    if (!fs.existsSync(zeaburDataDir)) {
+      fs.mkdirSync(zeaburDataDir, { recursive: true, mode: 0o755 });
+    }
+    return path.join(zeaburDataDir, "chat_studio.db");
+  }
+
   // Railway 生产环境使用 /var/data 目录
   if (process.env.RAILWAY_ENVIRONMENT_NAME) {
-    const railwayDataDir = '/var/data';
+    const railwayDataDir = "/var/data";
     // 确保目录存在
     if (!fs.existsSync(railwayDataDir)) {
-      fs.mkdirSync(railwayDataDir, { recursive: true });
+      fs.mkdirSync(railwayDataDir, { recursive: true, mode: 0o755 });
     }
-    return path.join(railwayDataDir, 'chat_studio.db');
+    return path.join(railwayDataDir, "chat_studio.db");
   }
-  
+
   // 本地开发环境使用项目目录下的 data 文件夹
-  const localDataDir = path.join(__dirname, '..', 'data');
+  const localDataDir = path.join(__dirname, "..", "data");
   if (!fs.existsSync(localDataDir)) {
-    fs.mkdirSync(localDataDir, { recursive: true });
+    fs.mkdirSync(localDataDir, { recursive: true, mode: 0o755 });
   }
-  return path.join(localDataDir, 'chat_studio.db');
+  return path.join(localDataDir, "chat_studio.db");
 }
 
 const DB_PATH = getDatabasePath();
@@ -35,24 +45,24 @@ const DB_PATH = getDatabasePath();
  */
 function createConnection() {
   console.log(`📍 数据库路径: ${DB_PATH}`);
-  
+
   const db = new sqlite3.Database(DB_PATH, (err) => {
     if (err) {
-      console.error('❌ 数据库连接失败:', err.message);
-      console.error('数据库路径:', DB_PATH);
+      console.error("❌ 数据库连接失败:", err.message);
+      console.error("数据库路径:", DB_PATH);
       process.exit(1);
     }
-    console.log('✅ SQLite 数据库连接成功');
+    console.log("✅ SQLite 数据库连接成功");
     console.log(`💾 数据库文件: ${DB_PATH}`);
   });
 
   // 启用 WAL 模式提升并发性能
-  db.run('PRAGMA journal_mode = WAL;', (err) => {
-    if (err) console.error('WAL模式设置失败:', err.message);
+  db.run("PRAGMA journal_mode = WAL;", (err) => {
+    if (err) console.error("WAL模式设置失败:", err.message);
   });
-  db.run('PRAGMA synchronous = NORMAL;');
-  db.run('PRAGMA cache_size = 1000;');
-  db.run('PRAGMA foreign_keys = ON;');
+  db.run("PRAGMA synchronous = NORMAL;");
+  db.run("PRAGMA cache_size = 1000;");
+  db.run("PRAGMA foreign_keys = ON;");
 
   return db;
 }
@@ -104,39 +114,39 @@ function initializeTables(db) {
 
     // 创建索引提升查询性能
     const createIndexes = [
-      'CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)',
-      'CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)',
-      'CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON chat_sessions (user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_sessions_session_id ON chat_sessions (session_id)',
-      'CREATE INDEX IF NOT EXISTS idx_messages_session_id ON chat_messages (session_id)',
-      'CREATE INDEX IF NOT EXISTS idx_messages_user_id ON chat_messages (user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON chat_messages (timestamp)'
+      "CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)",
+      "CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)",
+      "CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON chat_sessions (user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_sessions_session_id ON chat_sessions (session_id)",
+      "CREATE INDEX IF NOT EXISTS idx_messages_session_id ON chat_messages (session_id)",
+      "CREATE INDEX IF NOT EXISTS idx_messages_user_id ON chat_messages (user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON chat_messages (timestamp)",
     ];
 
     // 执行表创建
     db.serialize(() => {
       db.run(createUsersTable, (err) => {
         if (err) {
-          console.error('❌ 创建用户表失败:', err.message);
+          console.error("❌ 创建用户表失败:", err.message);
           return reject(err);
         }
-        console.log('✅ 用户表创建成功');
+        console.log("✅ 用户表创建成功");
       });
 
       db.run(createSessionsTable, (err) => {
         if (err) {
-          console.error('❌ 创建会话表失败:', err.message);
+          console.error("❌ 创建会话表失败:", err.message);
           return reject(err);
         }
-        console.log('✅ 会话表创建成功');
+        console.log("✅ 会话表创建成功");
       });
 
       db.run(createMessagesTable, (err) => {
         if (err) {
-          console.error('❌ 创建消息表失败:', err.message);
+          console.error("❌ 创建消息表失败:", err.message);
           return reject(err);
         }
-        console.log('✅ 消息表创建成功');
+        console.log("✅ 消息表创建成功");
       });
 
       // 创建索引
@@ -148,7 +158,7 @@ function initializeTables(db) {
         });
       });
 
-      console.log('✅ 数据库表结构初始化完成');
+      console.log("✅ 数据库表结构初始化完成");
       resolve();
     });
   });
@@ -173,9 +183,9 @@ function closeDatabase() {
   if (dbInstance) {
     dbInstance.close((err) => {
       if (err) {
-        console.error('❌ 关闭数据库连接失败:', err.message);
+        console.error("❌ 关闭数据库连接失败:", err.message);
       } else {
-        console.log('✅ 数据库连接已关闭');
+        console.log("✅ 数据库连接已关闭");
       }
     });
     dbInstance = null;
@@ -186,5 +196,5 @@ module.exports = {
   getDatabase,
   initializeTables,
   closeDatabase,
-  DB_PATH
+  DB_PATH,
 };

@@ -207,11 +207,23 @@ app.use((req, res) => {
 
 // 全局错误处理
 app.use((err, req, res, next) => {
-  console.error('服务器错误:', err);
-  res.status(500).json({
-    error: '服务器内部错误',
-    message: isProduction ? '请稍后重试' : err.message
+  console.error('❌ 全局错误处理:', err);
+  res.status(500).json({ 
+    success: false, 
+    message: '服务器内部错误' 
   });
+});
+
+// 处理未捕获的 Promise rejection
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ 未处理的 Promise rejection:', reason);
+  console.error('Promise:', promise);
+});
+
+// 处理未捕获的异常
+process.on('uncaughtException', (error) => {
+  console.error('❌ 未捕获的异常:', error);
+  process.exit(1);
 });
 
 /**
@@ -222,7 +234,8 @@ async function startServer() {
   try {
     // 初始化数据库
     console.log('🔧 正在初始化数据库...');
-    await initializeTables();
+    const db = getDatabase();
+    await initializeTables(db);
     console.log('✅ 数据库初始化完成');
 
     // 启动服务器 - 绑定到所有接口以支持容器部署
