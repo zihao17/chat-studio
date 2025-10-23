@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Modal, Form, Input, Button, Tabs, message } from "antd";
+import { Modal, Form, Input, Button, Tabs, App } from "antd";
 import {
   UserOutlined,
   MailOutlined,
@@ -38,6 +38,8 @@ export default function AuthModal({
   onSuccess,
 }: AuthModalProps) {
   const { login, register, state } = useAuth();
+  // 使用 App.useApp() 获取 message 实例
+  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [loginForm] = Form.useForm<LoginFormData>();
   const [registerForm] = Form.useForm<RegisterFormData>();
@@ -48,9 +50,11 @@ export default function AuthModal({
   const handleLogin = async (values: LoginFormData) => {
     try {
       await login(values.email, values.password);
+      // 先显示成功提示
       message.success("登录成功！");
       loginForm.resetFields();
       onSuccess?.();
+      // 立即关闭模态框，不需要延迟
       onCancel();
     } catch (error: any) {
       message.error(error.message || "登录失败");
@@ -63,9 +67,11 @@ export default function AuthModal({
   const handleRegister = async (values: RegisterFormData) => {
     try {
       await register(values.username, values.email, values.password);
+      // 先显示成功提示
       message.success("注册成功！");
       registerForm.resetFields();
       onSuccess?.();
+      // 立即关闭模态框，不需要延迟
       onCancel();
     } catch (error: any) {
       message.error(error.message || "注册失败");
@@ -111,7 +117,7 @@ export default function AuthModal({
         <Input
           prefix={<MailOutlined />}
           placeholder="请输入邮箱"
-          autoComplete="email"
+          autoComplete="username"
         />
       </Form.Item>
 
@@ -186,7 +192,7 @@ export default function AuthModal({
         <Input
           prefix={<MailOutlined />}
           placeholder="请输入邮箱"
-          autoComplete="email"
+          autoComplete="off"
         />
       </Form.Item>
 

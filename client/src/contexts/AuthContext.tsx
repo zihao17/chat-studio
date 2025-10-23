@@ -3,9 +3,9 @@
  * 管理用户登录状态和认证相关操作
  */
 
-import { createContext, useContext, useReducer, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useReducer, useEffect } from "react";
+import type { ReactNode } from "react";
+import axios from "axios";
 
 // 用户信息接口
 export interface User {
@@ -24,11 +24,11 @@ export interface AuthState {
 
 // 认证操作类型
 type AuthAction =
-  | { type: 'AUTH_START' }
-  | { type: 'AUTH_SUCCESS'; payload: User }
-  | { type: 'AUTH_FAILURE'; payload: string }
-  | { type: 'LOGOUT' }
-  | { type: 'CLEAR_ERROR' };
+  | { type: "AUTH_START" }
+  | { type: "AUTH_SUCCESS"; payload: User }
+  | { type: "AUTH_FAILURE"; payload: string }
+  | { type: "LOGOUT" }
+  | { type: "CLEAR_ERROR" };
 
 // 初始状态
 const initialState: AuthState = {
@@ -41,13 +41,13 @@ const initialState: AuthState = {
 // 状态管理 Reducer
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
-    case 'AUTH_START':
+    case "AUTH_START":
       return {
         ...state,
         isLoading: true,
         error: null,
       };
-    case 'AUTH_SUCCESS':
+    case "AUTH_SUCCESS":
       return {
         ...state,
         isAuthenticated: true,
@@ -55,7 +55,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         isLoading: false,
         error: null,
       };
-    case 'AUTH_FAILURE':
+    case "AUTH_FAILURE":
       return {
         ...state,
         isAuthenticated: false,
@@ -63,7 +63,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         isLoading: false,
         error: action.payload,
       };
-    case 'LOGOUT':
+    case "LOGOUT":
       return {
         ...state,
         isAuthenticated: false,
@@ -71,7 +71,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         isLoading: false,
         error: null,
       };
-    case 'CLEAR_ERROR':
+    case "CLEAR_ERROR":
       return {
         ...state,
         error: null,
@@ -85,7 +85,11 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 interface AuthContextType {
   state: AuthState;
   login: (email: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (
+    username: string,
+    email: string,
+    password: string
+  ) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   checkAuth: () => Promise<void>;
@@ -95,7 +99,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // API 基础配置 - 使用环境变量
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api`;
+const API_BASE_URL = `${
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3001"
+}/api`;
 
 // 配置 axios 默认设置
 axios.defaults.withCredentials = true;
@@ -113,22 +119,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const checkAuth = async () => {
     try {
-      dispatch({ type: 'AUTH_START' });
-      
+      dispatch({ type: "AUTH_START" });
+
       const response = await axios.get(`${API_BASE_URL}/auth/verify`);
-      
+
       if (response.data.success) {
-        dispatch({ type: 'AUTH_SUCCESS', payload: response.data.user });
+        dispatch({ type: "AUTH_SUCCESS", payload: response.data.user });
       } else {
-        dispatch({ type: 'AUTH_FAILURE', payload: '身份验证失败' });
+        dispatch({ type: "AUTH_FAILURE", payload: "身份验证失败" });
       }
     } catch (error: any) {
       // 401 表示未登录，这是正常情况
       if (error.response?.status === 401) {
-        dispatch({ type: 'LOGOUT' });
+        dispatch({ type: "LOGOUT" });
       } else {
-        console.error('身份验证错误:', error);
-        dispatch({ type: 'AUTH_FAILURE', payload: '身份验证失败' });
+        console.error("身份验证错误:", error);
+        dispatch({ type: "AUTH_FAILURE", payload: "身份验证失败" });
       }
     }
   };
@@ -138,21 +144,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const login = async (email: string, password: string) => {
     try {
-      dispatch({ type: 'AUTH_START' });
-      
+      dispatch({ type: "AUTH_START" });
+
       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
         email,
         password,
       });
 
       if (response.data.success) {
-        dispatch({ type: 'AUTH_SUCCESS', payload: response.data.user });
+        dispatch({ type: "AUTH_SUCCESS", payload: response.data.user });
       } else {
-        dispatch({ type: 'AUTH_FAILURE', payload: response.data.message || '登录失败' });
+        // 登录失败时，dispatch错误状态并抛出异常以触发UI提示
+        const errorMessage = response.data.message || "登录失败";
+        dispatch({
+          type: "AUTH_FAILURE",
+          payload: errorMessage,
+        });
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || '登录失败，请稍后重试';
-      dispatch({ type: 'AUTH_FAILURE', payload: errorMessage });
+      // 处理网络错误或其他异常
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "登录失败，请稍后重试";
+      dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
       throw new Error(errorMessage);
     }
   };
@@ -160,10 +176,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /**
    * 用户注册
    */
-  const register = async (username: string, email: string, password: string) => {
+  const register = async (
+    username: string,
+    email: string,
+    password: string
+  ) => {
     try {
-      dispatch({ type: 'AUTH_START' });
-      
+      dispatch({ type: "AUTH_START" });
+
       const response = await axios.post(`${API_BASE_URL}/auth/register`, {
         username,
         email,
@@ -171,13 +191,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
       if (response.data.success) {
-        dispatch({ type: 'AUTH_SUCCESS', payload: response.data.user });
+        dispatch({ type: "AUTH_SUCCESS", payload: response.data.user });
       } else {
-        dispatch({ type: 'AUTH_FAILURE', payload: response.data.message || '注册失败' });
+        dispatch({
+          type: "AUTH_FAILURE",
+          payload: response.data.message || "注册失败",
+        });
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || '注册失败，请稍后重试';
-      dispatch({ type: 'AUTH_FAILURE', payload: errorMessage });
+      const errorMessage =
+        error.response?.data?.message || "注册失败，请稍后重试";
+      dispatch({ type: "AUTH_FAILURE", payload: errorMessage });
       throw new Error(errorMessage);
     }
   };
@@ -189,9 +213,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await axios.post(`${API_BASE_URL}/auth/logout`);
     } catch (error) {
-      console.error('登出请求失败:', error);
+      console.error("登出请求失败:", error);
     } finally {
-      dispatch({ type: 'LOGOUT' });
+      dispatch({ type: "LOGOUT" });
     }
   };
 
@@ -199,7 +223,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * 清除错误信息
    */
   const clearError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
+    dispatch({ type: "CLEAR_ERROR" });
   };
 
   // 组件挂载时检查认证状态
@@ -217,9 +241,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }
 
@@ -229,7 +251,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth 必须在 AuthProvider 内部使用');
+    throw new Error("useAuth 必须在 AuthProvider 内部使用");
   }
   return context;
 }

@@ -19,6 +19,12 @@
   }
 }
 
+/* 修复 Ant Design App 组件导致的字体大小变化 */
+.ant-app {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
 /* Markdown渲染样式 */
 @layer components {
   .markdown-body {

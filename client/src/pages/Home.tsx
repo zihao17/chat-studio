@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { message } from "antd";
+import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import MainLayout from "../components/layout/MainLayout";
 import { useChatContext } from "../contexts/ChatContext";
@@ -13,6 +13,8 @@ import ChatInputPanel from "../components/ui/ChatInputPanel";
  * Chat Studio 的主要界面
  */
 const Home: React.FC = () => {
+  // 使用 App.useApp() 获取 message 实例
+  const { message } = App.useApp();
   // 用户输入内容
   const [inputValue, setInputValue] = useState("");
   // 消息容器引用，用于自动滚动

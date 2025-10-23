@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Select, message } from "antd";
+import { Select, App } from "antd";
 import { RobotOutlined } from "@ant-design/icons";
 import { getAvailableModels } from "../../utils/configApi";
 
@@ -81,6 +81,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   size = "middle",
   className = "",
 }) => {
+  // 使用 App.useApp() 获取 message 实例
+  const { message } = App.useApp();
   // 控制下拉菜单的显示状态
   const [open, setOpen] = useState(false);
   // 当前悬停的选项ID
