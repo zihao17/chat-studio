@@ -88,11 +88,16 @@ export function useChatSync(): ChatSyncState & ChatSyncActions {
           throw new Error(result.message);
         }
       } catch (error: any) {
+        // 检查是否是认证错误
+        if (error.response?.status === 401) {
+          console.error("同步游客数据失败:", error);
+          throw new Error("需要登录");
+        }
+        
         const errorMessage = error.message || "同步数据失败";
         setSyncState((prev) => ({ ...prev, error: errorMessage }));
-        message.error(errorMessage);
         console.error("同步游客数据失败:", error);
-        return false;
+        throw new Error(errorMessage);
       } finally {
         setSyncState((prev) => ({ ...prev, isSyncing: false }));
       }
@@ -116,11 +121,16 @@ export function useChatSync(): ChatSyncState & ChatSyncActions {
       console.log(`成功加载 ${cloudSessions.length} 个云端对话`);
       return cloudSessions;
     } catch (error: any) {
+      // 检查是否是认证错误
+      if (error.response?.status === 401) {
+        console.error("获取云端会话失败:", error);
+        throw new Error("需要登录");
+      }
+      
       const errorMessage = error.message || "加载云端数据失败";
       setSyncState((prev) => ({ ...prev, error: errorMessage }));
-      message.error(errorMessage);
       console.error("加载云端数据失败:", error);
-      return [];
+      throw new Error("加载云端数据失败");
     } finally {
       setSyncState((prev) => ({ ...prev, isLoading: false }));
     }

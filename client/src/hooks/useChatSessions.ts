@@ -565,7 +565,10 @@ export const useChatSessions = () => {
         !hasSyncedAfterLogin &&
         !chatSync.isSyncing
       ) {
-        console.log("用户登录，开始处理数据同步...");
+        console.log("用户登录成功，数据同步将自动进行");
+
+        // 添加延迟确保cookie完全设置
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         try {
           // 获取本地游客数据
@@ -576,18 +579,16 @@ export const useChatSessions = () => {
             ? JSON.parse(guestSessions)
             : [];
 
-          // 加载云端数据
-          const cloudSessions = await chatSync.loadCloudData();
+          // 加载云端数据（带重试机制）
+          const cloudSessions = await loadCloudDataWithRetry();
 
           if (parsedGuestSessions.length > 0) {
             // 有游客数据，需要同步到云端
-            const syncSuccess = await chatSync.syncGuestData(
-              parsedGuestSessions
-            );
+            const syncSuccess = await syncGuestDataWithRetry(parsedGuestSessions);
 
             if (syncSuccess) {
               // 同步成功后，重新加载云端数据（包含刚同步的数据）
-              const updatedCloudSessions = await chatSync.loadCloudData();
+              const updatedCloudSessions = await loadCloudDataWithRetry();
               setSessions(updatedCloudSessions);
 
               // 设置当前会话为最新的会话
@@ -597,6 +598,11 @@ export const useChatSessions = () => {
                 )[0];
                 setCurrentSessionId(latestSession.id);
               }
+
+              // 清空本地游客数据
+              localStorage.removeItem(STORAGE_KEYS.CHAT_SESSIONS);
+              localStorage.removeItem(STORAGE_KEYS.CURRENT_SESSION_ID);
+              console.log("游客数据同步成功，本地数据已清空");
             } else {
               // 同步失败，使用云端数据
               setSessions(cloudSessions);
@@ -624,6 +630,40 @@ export const useChatSessions = () => {
           // 同步失败时，保持当前状态，不影响用户使用
         }
       }
+    };
+
+    // 带重试机制的云端数据加载
+    const loadCloudDataWithRetry = async (maxRetries = 3): Promise<ChatSession[]> => {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          return await chatSync.loadCloudData();
+        } catch (error: any) {
+          console.warn(`加载云端数据失败 (尝试 ${i + 1}/${maxRetries}):`, error.message);
+          if (i === maxRetries - 1) {
+            throw error;
+          }
+          // 等待后重试
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        }
+      }
+      return [];
+    };
+
+    // 带重试机制的游客数据同步
+    const syncGuestDataWithRetry = async (guestSessions: ChatSession[], maxRetries = 3): Promise<boolean> => {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          return await chatSync.syncGuestData(guestSessions);
+        } catch (error: any) {
+          console.warn(`同步游客数据失败 (尝试 ${i + 1}/${maxRetries}):`, error.message);
+          if (i === maxRetries - 1) {
+            return false;
+          }
+          // 等待后重试
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        }
+      }
+      return false;
     };
 
     handleLoginSync();

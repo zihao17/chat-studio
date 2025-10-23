@@ -47,8 +47,13 @@ export async function getCloudSessions(): Promise<CloudSession[]> {
       throw new Error(response.data.message || '获取云端会话失败');
     }
   } catch (error: any) {
-    console.error('获取云端会话失败:', error);
-    throw new Error(error.response?.data?.message || '获取云端会话失败');
+    // 保留原始错误信息以便上层处理
+    if (error.response?.status === 401) {
+      console.error('获取云端会话失败: AxiosError {', 'message:', `'Request failed with status code ${error.response.status}'`, '...', '}');
+    } else {
+      console.error('获取云端会话失败:', error);
+    }
+    throw error; // 抛出原始错误，让上层处理
   }
 }
 
@@ -101,8 +106,13 @@ export async function syncGuestDataToCloud(sessions: ChatSession[]): Promise<Syn
       throw new Error(response.data.message || '同步数据失败');
     }
   } catch (error: any) {
-    console.error('同步游客数据失败:', error);
-    throw new Error(error.response?.data?.message || '同步数据失败');
+    // 保留原始错误信息以便上层处理
+    if (error.response?.status === 401) {
+      console.error('同步游客数据失败:', error);
+    } else {
+      console.error('同步游客数据失败:', error);
+    }
+    throw error; // 抛出原始错误，让上层处理
   }
 }
 
