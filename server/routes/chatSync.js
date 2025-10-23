@@ -34,6 +34,7 @@ router.get('/sessions', authenticateToken, (req, res) => {
         });
       }
 
+      console.log(`获取会话列表成功: 用户${userId}, 找到${sessions ? sessions.length : 0}个会话`);
       res.json({
         success: true,
         sessions: sessions || []
@@ -306,6 +307,8 @@ router.post('/sessions/:sessionId/messages', authenticateToken, (req, res) => {
             });
           }
 
+          console.log(`消息保存成功: 用户${userId}, 会话${sessionId}, 角色${role}, 内容长度${content.length}`);
+
           // 更新会话的最后更新时间
           const updateSessionSql = 'UPDATE chat_sessions SET updated_at = ? WHERE session_id = ? AND user_id = ?';
           db.run(updateSessionSql, [timestamp, sessionId, userId], (updateErr) => {
@@ -341,6 +344,7 @@ router.post('/sessions/:sessionId/messages', authenticateToken, (req, res) => {
             });
           }
 
+          console.log(`会话创建成功: 用户${userId}, 会话${sessionId}, 标题${sessionTitle}`);
           saveMessage();
         });
       } else {

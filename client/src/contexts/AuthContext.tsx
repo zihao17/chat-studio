@@ -124,13 +124,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await axios.get(`${API_BASE_URL}/auth/verify`);
 
       if (response.data.success) {
+        console.log("身份验证成功:", response.data.user);
         dispatch({ type: "AUTH_SUCCESS", payload: response.data.user });
       } else {
+        console.log("身份验证失败:", response.data.message);
         dispatch({ type: "AUTH_FAILURE", payload: "身份验证失败" });
       }
     } catch (error: any) {
       // 401 表示未登录，这是正常情况
       if (error.response?.status === 401) {
+        console.log("用户未登录，切换到游客模式");
         dispatch({ type: "LOGOUT" });
       } else {
         console.error("身份验证错误:", error);
