@@ -393,17 +393,29 @@ export const useChatSessions = () => {
 
         // 如果用户已登录，同时保存标题到云端
         if (authState.isAuthenticated) {
-          chatSync.saveMessage(
-            currentSessionId,
-            "user",
-            content.trim(),
-            newTitle
-          );
+          try {
+            await chatSync.saveMessage(
+              currentSessionId,
+              "user",
+              content.trim(),
+              newTitle
+            );
+            console.log("用户消息和标题已保存到云端");
+          } catch (error) {
+            console.error("保存用户消息到云端失败:", error);
+            // 不影响用户体验，消息已在本地保存
+          }
         }
       } else {
         // 不是第一条消息，正常保存
         if (authState.isAuthenticated) {
-          chatSync.saveMessage(currentSessionId, "user", content.trim());
+          try {
+            await chatSync.saveMessage(currentSessionId, "user", content.trim());
+            console.log("用户消息已保存到云端");
+          } catch (error) {
+            console.error("保存用户消息到云端失败:", error);
+            // 不影响用户体验，消息已在本地保存
+          }
         }
       }
 
@@ -488,11 +500,17 @@ export const useChatSessions = () => {
 
           // AI回复完成后，保存到云端
           if (authState.isAuthenticated && accumulatedContent.trim()) {
-            chatSync.saveMessage(
-              currentSessionId,
-              "assistant",
-              accumulatedContent
-            );
+            try {
+              await chatSync.saveMessage(
+                currentSessionId,
+                "assistant",
+                accumulatedContent
+              );
+              console.log("AI消息已保存到云端");
+            } catch (error) {
+              console.error("保存AI消息到云端失败:", error);
+              // 不影响用户体验，消息已在本地保存
+            }
           }
         }
       } catch (error) {
@@ -583,13 +601,16 @@ export const useChatSessions = () => {
           const cloudSessions = await loadCloudDataWithRetry();
 
           if (parsedGuestSessions.length > 0) {
+            console.log(`发现 ${parsedGuestSessions.length} 个游客会话，开始同步到云端`);
             // 有游客数据，需要同步到云端
             const syncSuccess = await syncGuestDataWithRetry(parsedGuestSessions);
 
             if (syncSuccess) {
+              console.log("游客数据同步成功，重新加载云端数据");
               // 同步成功后，重新加载云端数据（包含刚同步的数据）
               const updatedCloudSessions = await loadCloudDataWithRetry();
               setSessions(updatedCloudSessions);
+              console.log(`同步后加载到 ${updatedCloudSessions.length} 个云端会话`);
 
               // 设置当前会话为最新的会话
               if (updatedCloudSessions.length > 0) {
@@ -597,6 +618,7 @@ export const useChatSessions = () => {
                   (a, b) => b.updatedAt - a.updatedAt
                 )[0];
                 setCurrentSessionId(latestSession.id);
+                console.log(`设置当前会话为: ${latestSession.title}`);
               }
 
               // 清空本地游客数据
@@ -604,16 +626,22 @@ export const useChatSessions = () => {
               localStorage.removeItem(STORAGE_KEYS.CURRENT_SESSION_ID);
               console.log("游客数据同步成功，本地数据已清空");
             } else {
-              // 同步失败，使用云端数据
-              setSessions(cloudSessions);
-              if (cloudSessions.length > 0) {
-                const latestSession = cloudSessions.sort(
+              console.log("游客数据同步失败，使用现有云端数据");
+              // 同步失败，但不清空游客数据，保留在本地
+              // 合并游客数据和云端数据显示给用户
+              const mergedSessions = [...parsedGuestSessions, ...cloudSessions];
+              setSessions(mergedSessions);
+              
+              if (mergedSessions.length > 0) {
+                const latestSession = mergedSessions.sort(
                   (a, b) => b.updatedAt - a.updatedAt
                 )[0];
                 setCurrentSessionId(latestSession.id);
               }
+              console.log(`合并显示 ${mergedSessions.length} 个会话（游客+云端）`);
             }
           } else {
+            console.log("没有游客数据，直接使用云端数据");
             // 没有游客数据，直接使用云端数据
             setSessions(cloudSessions);
             if (cloudSessions.length > 0) {
@@ -622,52 +650,61 @@ export const useChatSessions = () => {
               )[0];
               setCurrentSessionId(latestSession.id);
             }
+            console.log(`加载 ${cloudSessions.length} 个云端会话`);
           }
 
           setHasSyncedAfterLogin(true);
         } catch (error) {
           console.error("登录后数据同步失败:", error);
-          // 同步失败时，保持当前状态，不影响用户使用
+          // 同步失败时，标记为已同步，避免无限重试
+          setHasSyncedAfterLogin(true);
         }
       }
     };
 
-    // 带重试机制的云端数据加载
-    const loadCloudDataWithRetry = async (maxRetries = 3): Promise<ChatSession[]> => {
+    // 带重试机制的云端数据加载 - 限制最大重试次数
+    const loadCloudDataWithRetry = async (maxRetries = 2): Promise<ChatSession[]> => {
       for (let i = 0; i < maxRetries; i++) {
         try {
           return await chatSync.loadCloudData();
         } catch (error: any) {
           console.warn(`加载云端数据失败 (尝试 ${i + 1}/${maxRetries}):`, error.message);
           if (i === maxRetries - 1) {
-            throw error;
+            // 最后一次失败，返回空数组而不是抛出错误
+            console.error("加载云端数据最终失败，使用空数据");
+            return [];
           }
-          // 等待后重试
-          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          // 等待后重试，使用固定延迟避免指数增长
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
       return [];
     };
 
-    // 带重试机制的游客数据同步
-    const syncGuestDataWithRetry = async (guestSessions: ChatSession[], maxRetries = 3): Promise<boolean> => {
+    // 带重试机制的游客数据同步 - 限制最大重试次数
+    const syncGuestDataWithRetry = async (guestSessions: ChatSession[], maxRetries = 2): Promise<boolean> => {
       for (let i = 0; i < maxRetries; i++) {
         try {
           return await chatSync.syncGuestData(guestSessions);
         } catch (error: any) {
           console.warn(`同步游客数据失败 (尝试 ${i + 1}/${maxRetries}):`, error.message);
           if (i === maxRetries - 1) {
+            // 最后一次失败，返回false
+            console.error("同步游客数据最终失败");
             return false;
           }
-          // 等待后重试
-          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+          // 等待后重试，使用固定延迟避免指数增长
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
       return false;
     };
 
-    handleLoginSync();
-  }, [authState.isAuthenticated, hasSyncedAfterLogin, chatSync]);
+    // 只在认证状态变化且未同步时执行
+    if (authState.isAuthenticated && !hasSyncedAfterLogin) {
+      handleLoginSync();
+    }
+  }, [authState.isAuthenticated, hasSyncedAfterLogin]); // 移除chatSync依赖，避免循环
 
   // 处理用户登出后的状态重置
   useEffect(() => {
