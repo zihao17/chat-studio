@@ -7,6 +7,7 @@ import { DEFAULT_WELCOME_MESSAGE } from "../types/chat";
 import StopGenerationButton from "../components/ui/StopGenerationButton";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import ChatInputPanel from "../components/ui/ChatInputPanel";
+import type { ChatInputPanelRef } from "../components/ui/ChatInputPanel";
 
 /**
  * 主页组件
@@ -21,6 +22,8 @@ const Home: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // 消息容器的滚动容器引用
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // 聊天输入框引用，用于自动聚焦
+  const chatInputRef = useRef<ChatInputPanelRef>(null);
   // 用户是否手动滚动的状态
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   // 上次消息数量，用于检测新消息
@@ -226,6 +229,21 @@ const Home: React.FC = () => {
     };
   }, []);
 
+  // 监听会话切换，自动聚焦输入框
+  useEffect(() => {
+    // 当会话ID发生变化时，延迟聚焦输入框
+    // 使用setTimeout确保新会话的DOM已完全渲染
+    if (currentSessionId) {
+      const focusTimer = setTimeout(() => {
+        if (chatInputRef.current) {
+          chatInputRef.current.focus();
+        }
+      }, 100); // 100ms延迟确保DOM渲染完成
+
+      return () => clearTimeout(focusTimer);
+    }
+  }, [currentSessionId]);
+
   // 发送消息处理函数
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isAILoading) return;
@@ -386,6 +404,7 @@ const Home: React.FC = () => {
 
             {/* 一体化聊天输入面板 */}
             <ChatInputPanel
+              ref={chatInputRef}
               value={inputValue}
               onChange={setInputValue}
               onSend={handleSendMessage}

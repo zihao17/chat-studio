@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "antd";
 import {
   SendOutlined,
@@ -7,6 +7,11 @@ import {
   BookOutlined,
   BranchesOutlined,
 } from "@ant-design/icons";
+
+// 定义暴露给父组件的方法接口
+export interface ChatInputPanelRef {
+  focus: () => void;
+}
 
 interface ChatInputPanelProps {
   value: string;
@@ -21,7 +26,7 @@ interface ChatInputPanelProps {
   onWorkflow?: () => void;
 }
 
-const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
+const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
   value,
   onChange,
   onSend,
@@ -32,9 +37,18 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   onFileUpload,
   onKnowledgeBase,
   onWorkflow,
-}) => {
+}, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 暴露聚焦方法给父组件
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }
+  }), []);
 
   // 自动调整textarea高度，支持过渡动画
   const adjustTextareaHeight = () => {
@@ -202,6 +216,9 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// 设置displayName以便调试
+ChatInputPanel.displayName = 'ChatInputPanel';
 
 export default ChatInputPanel;
