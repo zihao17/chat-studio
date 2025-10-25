@@ -5,8 +5,26 @@
 
 const express = require("express");
 const OpenAI = require("openai");
+const https = require('https');
+const http = require('http');
 const { getModelscopeApiKey } = require("../utils/keyManager");
 const router = express.Router();
+
+/**
+ * 创建连接代理（复用TCP连接）
+ * @param {boolean} isHttps - 是否为HTTPS连接
+ * @returns {Agent} - HTTP/HTTPS代理实例
+ */
+const createKeepAliveAgent = (isHttps = true) => {
+  const Agent = isHttps ? https.Agent : http.Agent;
+  return new Agent({
+    keepAlive: true,         // 启用连接复用
+    keepAliveMsecs: 30000,   // 空闲连接保持30s
+    maxSockets: 30,          // 最大并发连接（根据API并发限制调整，如30）
+    maxFreeSockets: 5,       // 保留5个空闲连接，避免频繁创建
+    scheduling: 'fifo'       // 先进先出调度，避免连接饥饿
+  });
+};
 
 /**
  * 根据模型名称判断使用哪个 AI 服务
@@ -56,16 +74,25 @@ function createOpenAIClient(serviceType) {
     return new OpenAI({
       apiKey: process.env.DASHSCOPE_API_KEY,
       baseURL: process.env.DASHSCOPE_BASE_URL,
+      httpAgent: createKeepAliveAgent(false),  // HTTP连接复用
+      httpsAgent: createKeepAliveAgent(true),   // HTTPS连接复用
+      timeout: 60000,  // 延长超时到60s，适配长响应
     });
   } else if (serviceType === "modelscope") {
     return new OpenAI({
       apiKey: getModelscopeApiKey(), // 使用key管理器获取密钥
       baseURL: process.env.MODELSCOPE_BASE_URL,
+      httpAgent: createKeepAliveAgent(false),  // HTTP连接复用
+      httpsAgent: createKeepAliveAgent(true),   // HTTPS连接复用
+      timeout: 60000,  // 延长超时到60s，适配长响应
     });
   } else if (serviceType === "openai") {
     return new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       baseURL: process.env.OPENAI_BASE_URL,
+      httpAgent: createKeepAliveAgent(false),  // HTTP连接复用
+      httpsAgent: createKeepAliveAgent(true),   // HTTPS连接复用
+      timeout: 60000,  // 延长超时到60s，适配长响应
     });
   } else {
     throw new Error(`不支持的服务类型: ${serviceType}`);

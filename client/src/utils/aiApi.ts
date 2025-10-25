@@ -72,6 +72,8 @@ export async function callAIChatStream(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Connection": "keep-alive",  // 告知服务器复用连接
+        "Accept-Encoding": "gzip, deflate, br"  // 支持压缩
       },
       body: JSON.stringify({
         messages,
