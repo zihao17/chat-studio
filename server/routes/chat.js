@@ -212,11 +212,40 @@ router.post("/chat", validateChatRequest, async (req, res) => {
           }
         );
 
+        // 初始化合并缓存和超时器（优化流式传输性能）
+        let buffer = ''; // 缓存待合并的内容
+        let timeoutId = null;
+        const MERGE_THRESHOLD = 60; // 字符阈值（中文约30字，英文约60字符）
+        const MERGE_TIMEOUT = 30; // 超时阈值（30ms内未达阈值则强制发送）
+
+        // 发送缓存内容的函数
+        const flushBuffer = () => {
+          if (buffer) {
+            res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
+            buffer = '';
+          }
+          timeoutId = null;
+        };
+
         for await (const chunk of completion) {
           const content = chunk.choices[0]?.delta?.content || "";
           if (content) {
-            // 发送 SSE 格式数据
-            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+            // 缓存当前chunk内容
+            buffer += content;
+
+            // 清除上一次的超时器（避免提前发送）
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+
+            // 满足阈值则立即发送，否则等待超时
+            if (buffer.length >= MERGE_THRESHOLD) {
+              flushBuffer();
+            } else {
+              // 超时未达阈值，强制发送（保证实时性）
+              timeoutId = setTimeout(flushBuffer, MERGE_TIMEOUT);
+            }
           }
 
           // 收集token使用信息
@@ -225,6 +254,11 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             promptTokens = chunk.usage.prompt_tokens || 0;
             completionTokens = chunk.usage.completion_tokens || 0;
           }
+        }
+
+        // 流结束后，发送剩余缓存内容
+        if (buffer) {
+          res.write(`data: ${JSON.stringify({ content: buffer })}\n\n`);
         }
 
         // 计算响应时间
@@ -318,6 +352,11 @@ router.post("/chat", validateChatRequest, async (req, res) => {
         message: errorMessage,
         code: error.code || "UNKNOWN_ERROR",
       });
+    }
+  } finally {
+    // 清理可能存在的超时器
+    if (req.body.stream && typeof timeoutId !== 'undefined' && timeoutId) {
+      clearTimeout(timeoutId);
     }
   }
 });
