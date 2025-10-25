@@ -453,21 +453,47 @@ export const useChatSessions = () => {
         let accumulatedContent = "";
         // 标记是否发生错误，避免在错误后用空内容覆盖错误提示
         let errorOccurred = false;
+        // 高频chunk合并相关变量
+        let chunkBuffer = "";
+        let chunkTimer: number | null = null;
+
+        // 合并chunk更新的函数
+        const flushChunkBuffer = () => {
+          if (chunkBuffer) {
+            accumulatedContent += chunkBuffer;
+            updateMessage(currentSessionId, loadingMessage.id, {
+              content: accumulatedContent,
+              isLoading: true,
+            });
+            chunkBuffer = "";
+          }
+          chunkTimer = null;
+        };
 
         // 调用流式AI接口
         await callAIChatStream(
           chatMessages,
           // onChunk: 接收到数据块时的回调
           (chunk: string) => {
-            accumulatedContent += chunk;
-            // 实时更新AI消息内容
-            updateMessage(currentSessionId, loadingMessage.id, {
-              content: accumulatedContent,
-              isLoading: true, // 保持加载状态直到完成
-            });
+            chunkBuffer += chunk;
+            // 每15ms合并一次更新（兼顾实时性和性能）
+            if (!chunkTimer) {
+              chunkTimer = setTimeout(flushChunkBuffer, 15); // 15ms约为60fps的单帧时间，减少DOM更新频率
+            }
           },
           // onError: 错误处理回调
           (error: string) => {
+            // 清除pending的chunk更新
+            if (chunkTimer) {
+              clearTimeout(chunkTimer);
+              chunkTimer = null;
+            }
+            // 确保最后一批chunk被更新
+            if (chunkBuffer) {
+              accumulatedContent += chunkBuffer;
+              chunkBuffer = "";
+            }
+            
             console.error("AI流式回复失败:", error);
             // 以一条 AI 消息的形式展示友好错误提示，保留在对话历史
             updateMessage(currentSessionId, loadingMessage.id, {
@@ -493,6 +519,16 @@ export const useChatSessions = () => {
 
         // 流式传输完成，清除加载状态（仅在未发生错误时更新最终内容）
         if (!errorOccurred) {
+          // 清除pending的chunk更新并确保最后一批chunk被更新
+          if (chunkTimer) {
+            clearTimeout(chunkTimer);
+            chunkTimer = null;
+          }
+          if (chunkBuffer) {
+            accumulatedContent += chunkBuffer;
+            chunkBuffer = "";
+          }
+          
           updateMessage(currentSessionId, loadingMessage.id, {
             content: accumulatedContent,
             isLoading: false,

@@ -38,6 +38,8 @@ const Home: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   // 保底滚动定时器：极端情况下的兜底机制
   const fallbackScrollTimeoutRef = useRef<number | null>(null);
+  // 滚动状态标记：避免同一帧内多次触发滚动
+  const isScrollingRef = useRef<boolean>(false);
 
   // 从Context获取会话状态和方法
   const {
@@ -52,64 +54,70 @@ const Home: React.FC = () => {
   // 获取距离底部的像素距离
   const getDistanceFromBottom = () => {
     if (!messagesContainerRef.current) return 0;
-    const { scrollTop, scrollHeight, clientHeight } =
-      messagesContainerRef.current;
-    return scrollHeight - scrollTop - clientHeight;
+    const container = messagesContainerRef.current;
+    // 精确计算距离底部的距离（clientHeight已扣除padding，更准确）
+    const distanceFromBottom = 
+      container.scrollHeight - 
+      container.scrollTop - 
+      container.clientHeight; // clientHeight不包含滚动条，更精确
+    return distanceFromBottom;
   };
 
-  // 检查是否接近底部（≤100px为吸附区域）
+  // 检查是否接近底部（≤80px为吸附区域，缩小缓冲区间提高灵敏度）
   const isNearBottom = () => {
-    return getDistanceFromBottom() <= 100;
+    return getDistanceFromBottom() <= 80;
   };
 
-  // 滚动到底部的函数 - 使用微任务队列 + 单次 rAF 确保准确滚动
+  // 滚动到底部的函数 - 使用帧率节流 + scrollIntoView 确保准确滚动
   const scrollToBottom = () => {
+    // 避免同一帧内多次触发滚动
+    if (isScrollingRef.current) return;
+    isScrollingRef.current = true;
+
     // 使用微任务确保 React 状态已提交，在当前宏任务结束后、浏览器渲染前执行
     queueMicrotask(() => {
       // 单次 rAF：确保 DOM 更新和布局计算完成
       requestAnimationFrame(() => {
-        if (messagesContainerRef.current) {
+        if (messagesContainerRef.current && messagesEndRef.current) {
           const container = messagesContainerRef.current;
-          // 强制读取 scrollHeight 触发浏览器布局计算，确保高度是最新的
-          const scrollHeight = container.scrollHeight;
+          // 强制触发浏览器重排，确保获取最新布局（关键！）
+          container.offsetHeight; // 强制更新布局计算
           
-          // 滚动到底部
-          container.scrollTo({
-            top: scrollHeight,
-            behavior: "smooth"
+          // 改用消息末尾的空div定位，比scrollHeight更可靠
+          messagesEndRef.current.scrollIntoView({
+            block: 'end', // 精确对齐底部
+            behavior: 'auto' // 所有情况下都直接跳转，无动画
           });
         }
+        isScrollingRef.current = false;
       });
     });
   };
 
-  // 防抖滚动函数 - 使用滚动锁避免高频滚动，确保在内容稳定后再滚动
-  const debouncedScrollToBottom = () => {
-    // 清除之前的延迟滚动
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-
-    // 设置新的延迟滚动（50ms 防抖）
-    scrollTimeoutRef.current = setTimeout(() => {
-      scrollToBottom();
-      scrollTimeoutRef.current = null;
-    }, 50);
-  };
+  // 移除原有的防抖滚动函数，直接使用scrollToBottom
+  // const debouncedScrollToBottom = () => { ... } // 已删除
 
   // 启动保底滚动定时器 - 极端情况兜底机制
+  // 保底滚动机制 - 确保在极端情况下也能滚动到底部
   const startFallbackScrollTimer = () => {
-    // 清除之前的保底定时器
+    // 清除旧定时器
     if (fallbackScrollTimeoutRef.current) {
       clearTimeout(fallbackScrollTimeoutRef.current);
     }
-
-    // 设置 300ms 后的保底滚动
-    fallbackScrollTimeoutRef.current = setTimeout(() => {
-      // 强制滚动到底部（无条件执行）
-      scrollToBottom();
-      fallbackScrollTimeoutRef.current = null;
-    }, 300);
+  
+    // 流式输出时缩短保底时间（300ms→100ms），并连续检查3次
+    let checkCount = 0;
+    const checkScroll = () => {
+      scrollToBottom(); // 强制滚动
+      checkCount++;
+      if (isStreaming && checkCount < 3) { // 连续检查3次
+        fallbackScrollTimeoutRef.current = setTimeout(checkScroll, 100);
+      } else {
+        fallbackScrollTimeoutRef.current = null;
+      }
+    };
+  
+    fallbackScrollTimeoutRef.current = setTimeout(checkScroll, 100);
   };
 
   // 清除保底滚动定时器
@@ -129,17 +137,17 @@ const Home: React.FC = () => {
     // 用户主动滚动时，清除保底定时器（用户已经看到内容）
     clearFallbackScrollTimer();
 
-    // 智能吸附逻辑
-    if (distanceFromBottom <= 100) {
-      // 用户滚动到接近底部（≤100px），启用吸附模式
+    // 智能吸附逻辑 - 缩小缓冲区间（80-120px），减少状态频繁切换的同时提高灵敏度
+    if (distanceFromBottom <= 80) {
+      // 用户滚动到接近底部（≤80px），启用吸附模式
       setIsStickToBottom(true);
       setUserHasScrolled(false);
-    } else if (distanceFromBottom > 150) {
-      // 用户向上滚动超过150px，取消吸附模式
+    } else if (distanceFromBottom > 120) {
+      // 用户向上滚动超过120px，取消吸附模式
       setIsStickToBottom(false);
       setUserHasScrolled(true);
     }
-    // 在100px-150px之间保持当前状态，避免频繁切换
+    // 在80px-120px之间保持当前状态，避免频繁切换
   };
 
   // 智能滚动逻辑 - 支持吸附模式、流式输出跟随，使用滚动锁防抖机制 + 保底兜底
@@ -189,10 +197,10 @@ const Home: React.FC = () => {
         (!userHasScrolled && isNearBottom());
 
       if (shouldScroll) {
-        // 对于流式输出，使用防抖滚动避免高频更新
+        // 对于流式输出，直接使用scrollToBottom（已优化为帧率节流）
         if (hasContentUpdate && !hasNewMessage) {
-          // 流式输出中：使用防抖滚动
-          debouncedScrollToBottom();
+          // 流式输出中：使用优化后的滚动
+          scrollToBottom();
         } else {
           // 新消息或错误消息：立即滚动
           scrollToBottom();
