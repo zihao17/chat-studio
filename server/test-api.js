@@ -21,7 +21,7 @@ async function testNonStreamChat() {
           content: '你好，请简单介绍一下你自己。'
         }
       ],
-      model: 'Qwen/Qwen3-Next-80B-A3B-Instruct',
+      model: 'qwen-max',
       stream: false
     });
 
@@ -47,7 +47,7 @@ async function testStreamChat() {
           content: '请用一句话介绍人工智能。'
         }
       ],
-      model: 'Qwen/Qwen3-Next-80B-A3B-Instruct',
+      model: 'qwen-max',
       stream: true
     }, {
       responseType: 'stream'
@@ -94,22 +94,26 @@ async function testValidation() {
   // 测试缺少 messages 参数
   try {
     await axios.post(`${API_BASE_URL}/api/chat`, {
-      model: 'Qwen/Qwen3-Next-80B-A3B-Instruct'
+      model: 'qwen-max'
     });
   } catch (error) {
     if (error.response?.status === 400) {
       console.log('✅ 缺少 messages 参数校验通过');
+    } else {
+      console.error('❌ 参数校验测试失败');
     }
   }
 
   // 测试缺少 model 参数
   try {
     await axios.post(`${API_BASE_URL}/api/chat`, {
-      messages: [{ role: 'user', content: '测试' }]
+      messages: [{ role: 'user', content: 'test' }]
     });
   } catch (error) {
     if (error.response?.status === 400) {
       console.log('✅ 缺少 model 参数校验通过');
+    } else {
+      console.error('❌ 参数校验测试失败');
     }
   }
 }
