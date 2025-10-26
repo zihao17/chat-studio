@@ -5,8 +5,8 @@
 
 const express = require("express");
 const OpenAI = require("openai");
-const https = require('https');
-const http = require('http');
+const https = require("https");
+const http = require("http");
 const { getModelscopeApiKey } = require("../utils/keyManager");
 const router = express.Router();
 
@@ -18,11 +18,11 @@ const router = express.Router();
 const createKeepAliveAgent = (isHttps = true) => {
   const Agent = isHttps ? https.Agent : http.Agent;
   return new Agent({
-    keepAlive: true,         // 启用连接复用
-    keepAliveMsecs: 30000,   // 空闲连接保持30s
-    maxSockets: 30,          // 最大并发连接（根据API并发限制调整，如30）
-    maxFreeSockets: 5,       // 保留5个空闲连接，避免频繁创建
-    scheduling: 'fifo'       // 先进先出调度，避免连接饥饿
+    keepAlive: true, // 启用连接复用
+    keepAliveMsecs: 30000, // 空闲连接保持30s
+    maxSockets: 30, // 最大并发连接（根据API并发限制调整，如30）
+    maxFreeSockets: 5, // 保留5个空闲连接，避免频繁创建
+    scheduling: "fifo", // 先进先出调度，避免连接饥饿
   });
 };
 
@@ -74,25 +74,25 @@ function createOpenAIClient(serviceType) {
     return new OpenAI({
       apiKey: process.env.DASHSCOPE_API_KEY,
       baseURL: process.env.DASHSCOPE_BASE_URL,
-      httpAgent: createKeepAliveAgent(false),  // HTTP连接复用
-      httpsAgent: createKeepAliveAgent(true),   // HTTPS连接复用
-      timeout: 60000,  // 延长超时到60s，适配长响应
+      httpAgent: createKeepAliveAgent(false), // HTTP连接复用
+      httpsAgent: createKeepAliveAgent(true), // HTTPS连接复用
+      timeout: 60000, // 延长超时到60s，适配长响应
     });
   } else if (serviceType === "modelscope") {
     return new OpenAI({
       apiKey: getModelscopeApiKey(), // 使用key管理器获取密钥
       baseURL: process.env.MODELSCOPE_BASE_URL,
-      httpAgent: createKeepAliveAgent(false),  // HTTP连接复用
-      httpsAgent: createKeepAliveAgent(true),   // HTTPS连接复用
-      timeout: 60000,  // 延长超时到60s，适配长响应
+      httpAgent: createKeepAliveAgent(false), // HTTP连接复用
+      httpsAgent: createKeepAliveAgent(true), // HTTPS连接复用
+      timeout: 60000, // 延长超时到60s，适配长响应
     });
   } else if (serviceType === "openai") {
     return new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       baseURL: process.env.OPENAI_BASE_URL,
-      httpAgent: createKeepAliveAgent(false),  // HTTP连接复用
-      httpsAgent: createKeepAliveAgent(true),   // HTTPS连接复用
-      timeout: 60000,  // 延长超时到60s，适配长响应
+      httpAgent: createKeepAliveAgent(false), // HTTP连接复用
+      httpsAgent: createKeepAliveAgent(true), // HTTPS连接复用
+      timeout: 60000, // 延长超时到60s，适配长响应
     });
   } else {
     throw new Error(`不支持的服务类型: ${serviceType}`);
@@ -103,7 +103,7 @@ function createOpenAIClient(serviceType) {
  * 参数校验中间件
  */
 function validateChatRequest(req, res, next) {
-  const { messages, model } = req.body;
+  const { messages, model, temperature, max_tokens, top_p } = req.body;
 
   // 校验 messages 参数
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -138,6 +138,30 @@ function validateChatRequest(req, res, next) {
     });
   }
 
+  // 校验 temperature 参数（可选）
+  if (temperature !== undefined && (typeof temperature !== "number" || temperature < 0 || temperature > 2)) {
+    return res.status(400).json({
+      error: "Invalid request",
+      message: "temperature 参数必须是 0-2 之间的数字",
+    });
+  }
+
+  // 校验 max_tokens 参数（可选）
+  if (max_tokens !== undefined && (typeof max_tokens !== "number" || max_tokens < 1)) {
+    return res.status(400).json({
+      error: "Invalid request",
+      message: "max_tokens 参数必须是大于 0 的数字",
+    });
+  }
+
+  // 校验 top_p 参数（可选）
+  if (top_p !== undefined && (typeof top_p !== "number" || top_p < 0 || top_p > 1)) {
+    return res.status(400).json({
+      error: "Invalid request",
+      message: "top_p 参数必须是 0-1 之间的数字",
+    });
+  }
+
   next();
 }
 
@@ -149,9 +173,10 @@ router.post("/chat", validateChatRequest, async (req, res) => {
   const {
     messages,
     model,
-    stream = false,
+    stream = true,
     temperature = 0.7,
-    max_tokens = 8000,
+    max_tokens = 10000,
+    top_p = 0.9, // 添加 top_p 参数支持，默认值 0.9
   } = req.body;
 
   // 记录开始时间
@@ -173,7 +198,7 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             {
               role: "system",
               content:
-                "You are a helpful assistant. Please respond in Chinese.",
+                "你是 Chat Studio 智能伙伴，一个专为学习、工作与生活场景设计的 AI 助手，智能贴心且全面。请以清晰、自然、有帮助的方式回应用户。始终使用简体中文，语言流畅，语气可随用户风格灵活调整（专业严谨或轻松亲切）。擅长解答知识问题、提供建议、辅助（如代码、文本、生活等），并能帮用户梳理逻辑、解决实际问题。",
             },
             ...messages,
           ];
@@ -202,6 +227,7 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             stream: true,
             temperature,
             max_tokens,
+            top_p, // 添加 top_p 参数
             // 添加 stream_options 以获取 token 统计信息
             stream_options: {
               include_usage: true,
@@ -254,6 +280,7 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             stream: false,
             temperature,
             max_tokens,
+            top_p, // 添加 top_p 参数
           },
           {
             signal: controller.signal,

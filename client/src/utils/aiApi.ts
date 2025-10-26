@@ -1,5 +1,6 @@
 // API 基础配置 - 使用环境变量
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
 
 // 消息类型定义
 export interface ChatMessage {
@@ -72,15 +73,16 @@ export async function callAIChatStream(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Connection": "keep-alive",  // 告知服务器复用连接
-        "Accept-Encoding": "gzip, deflate, br"  // 支持压缩
+        Connection: "keep-alive", // 告知服务器复用连接
+        "Accept-Encoding": "gzip, deflate, br", // 支持压缩
       },
       body: JSON.stringify({
         messages,
         model,
         stream: true,
         temperature: 0.7,
-        max_tokens: 8000, // 增加 max_tokens 以支持更长的回复
+        max_tokens: 10000, // 增加 max_tokens 以支持更长的回复
+        top_p: 0.9, // 添加 top_p 参数，默认值 0.9
       }),
       signal: abortController?.signal, // 添加中断信号
     });
