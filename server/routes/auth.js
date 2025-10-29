@@ -10,8 +10,20 @@ const { getDatabase } = require('../db/database');
 
 const router = express.Router();
 
-// JWT 密钥（生产环境应从环境变量获取）
-const JWT_SECRET = process.env.JWT_SECRET || 'chat-studio-secret-key-2024';
+// 环境标识（兼容云平台）
+const isProduction =
+  process.env.NODE_ENV === 'production' ||
+  !!process.env.ZEABUR ||
+  !!process.env.ZEABUR_ENVIRONMENT_NAME ||
+  !!process.env.RAILWAY_ENVIRONMENT_NAME;
+
+// JWT 密钥（生产环境必须从环境变量获取；开发环境使用固定开发密钥）
+const JWT_SECRET = process.env.JWT_SECRET || (!isProduction ? 'chat-studio-dev-secret' : undefined);
+if (!JWT_SECRET) {
+  // 在生产环境缺失时，抛出错误以便尽早暴露配置问题
+  throw new Error('JWT_SECRET 未配置。生产环境必须设置 JWT_SECRET 环境变量');
+}
+
 const JWT_EXPIRES_IN = '7d'; // Token 有效期 7 天
 
 /**
@@ -96,11 +108,12 @@ router.post('/register', async (req, res) => {
             { expiresIn: JWT_EXPIRES_IN }
           );
 
-          // 设置 HttpOnly Cookie
+          // 设置 HttpOnly Cookie（生产环境 SameSite=None; Secure 以适配代理/跨站场景）
           res.cookie('auth_token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
+            path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7天
           });
 
@@ -184,11 +197,12 @@ router.post('/login', (req, res) => {
           { expiresIn: JWT_EXPIRES_IN }
         );
 
-        // 设置 HttpOnly Cookie
+        // 设置 HttpOnly Cookie（生产环境 SameSite=None; Secure 以适配代理/跨站场景）
         res.cookie('auth_token', token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
+          secure: isProduction,
+          sameSite: isProduction ? 'none' : 'lax',
+          path: '/',
           maxAge: 7 * 24 * 60 * 60 * 1000 // 7天
         });
 
@@ -224,11 +238,12 @@ router.post('/login', (req, res) => {
  */
 router.post('/logout', (req, res) => {
   try {
-    // 清除 Cookie
+    // 清除 Cookie（参数需与设置时保持一致）
     res.clearCookie('auth_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax'
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
     });
 
     res.json({

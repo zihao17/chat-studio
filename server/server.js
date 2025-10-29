@@ -18,10 +18,11 @@ const {
   initializeTables,
   closeDatabase,
 } = require("./db/database");
-const chatRoutes = require("./routes/chat");
-const { router: authRoutes } = require("./routes/auth");
-const chatSyncRoutes = require("./routes/chatSync");
-const configRoutes = require("./routes/config");
+// 路由模块延后加载，确保环境校验与变量初始化先完成
+const chatRoutesPath = "./routes/chat";
+const authRoutesPath = "./routes/auth";
+const chatSyncRoutesPath = "./routes/chatSync";
+const configRoutesPath = "./routes/config";
 
 // 检测部署平台
 const isZeabur = process.env.ZEABUR || process.env.ZEABUR_ENVIRONMENT_NAME;
@@ -42,16 +43,15 @@ console.log(`🌍 生产模式: ${isProduction ? "是" : "否"}`);
 function validateEnvironment() {
   const requiredEnvVars = ["DASHSCOPE_API_KEY", "DASHSCOPE_BASE_URL"];
 
-  // JWT密钥校验 - 如果没有设置则自动生成（适用于 Zeabur 等云平台）
+  // JWT 密钥校验：生产环境必须显式配置；开发环境提供稳定默认值
   if (!process.env.JWT_SECRET) {
-    console.warn("⚠️  未设置 JWT_SECRET 环境变量，自动生成临时密钥");
-    console.warn(
-      "🔧 建议在 Zeabur 控制台设置 JWT_SECRET 环境变量以确保重启后会话保持"
-    );
-
-    // 生成一个临时的强随机密钥
-    process.env.JWT_SECRET = crypto.randomBytes(32).toString("hex");
-    console.log("✅ 已生成临时 JWT_SECRET");
+    if (isProduction) {
+      console.error("❌ 未设置 JWT_SECRET 环境变量（生产环境必须设置）");
+      process.exit(1);
+    } else {
+      console.warn("⚠️  未设置 JWT_SECRET，使用开发环境默认密钥（仅限本地开发）");
+      process.env.JWT_SECRET = "chat-studio-dev-secret";
+    }
   }
 
   // 可选的环境变量（至少需要一个AI服务配置）
@@ -82,7 +82,7 @@ function validateEnvironment() {
       console.warn("⚠️  生产环境建议设置 FRONTEND_URL 环境变量");
     }
 
-    // 检查JWT密钥强度
+    // 检查 JWT 密钥强度
     if (process.env.JWT_SECRET.length < 32) {
       console.error("❌ JWT_SECRET 长度不足32位，安全性不够");
       process.exit(1);
@@ -129,6 +129,8 @@ function validateEnvironment() {
 validateEnvironment();
 
 const app = express();
+// 在反向代理/平台（如 Zeabur、Railway）后面时，确保获取到正确的协议信息
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3001;
 
 // CORS 允许的来源列表
@@ -147,6 +149,7 @@ const allowedOrigins = [
   "https://chat-studio.vercel.app",
   "https://chat-studio-pzh.vercel.app", // 主要 Vercel 域名
   "https://chat-studio-zihao17s-projects.vercel.app", // 可能的其他 Vercel 域名
+  "https://chat-studio.zeabur.app", // Zeabur 部署域名
 ];
 
 // 如果设置了 FRONTEND_URL 环境变量，添加到允许列表
@@ -217,6 +220,12 @@ app.get("/health", (req, res) => {
     environment: process.env.NODE_ENV || "development",
   });
 });
+
+// 路由按需加载（在环境校验后）
+const chatRoutes = require(chatRoutesPath);
+const { router: authRoutes } = require(authRoutesPath);
+const chatSyncRoutes = require(chatSyncRoutesPath);
+const configRoutes = require(configRoutesPath);
 
 // API 路由
 app.use("/api/auth", authRoutes);

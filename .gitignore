@@ -31,7 +31,6 @@ client/.env.*.local
 .idea
 .DS_Store
 *.suo
-.trae/*
 *.ntvs*
 *.njsproj
 *.sln
