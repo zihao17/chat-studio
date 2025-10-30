@@ -27,7 +27,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const toggleSidebar = () => setIsSidebarCollapsed((prev) => !prev);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-app transition-colors">
       {/* 侧边栏 */}
       <Sidebar collapsed={isSidebarCollapsed} />
 

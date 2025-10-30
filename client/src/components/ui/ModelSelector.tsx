@@ -200,8 +200,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           <div className="model-selector-dropdown">
             {menu}
             {displayModel && (
-              <div className="px-3 py-2 border-t border-gray-100 bg-gray-50">
-                <div className="text-xs text-gray-500">
+              <div className="px-3 py-2 border-t border-surface bg-panel dark:bg-black">
+                <div className="text-xs text-gray-600 dark:text-white">
                   <div className="font-medium">{displayModel.name}</div>
                   <div className="mt-1">{displayModel.description}</div>
                 </div>

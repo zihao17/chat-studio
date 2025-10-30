@@ -278,7 +278,7 @@ export default function AuthModal({
     <Modal
       title={
         <div className="text-center">
-          <div className="text-xl font-semibold text-gray-800">
+          <div className="text-xl font-semibold text-gray-800 dark:text-gray-100">
             欢迎使用 Chat Studio
           </div>
         </div>

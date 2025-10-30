@@ -1,25 +1,33 @@
-import { ConfigProvider, App as AntdApp } from 'antd'
+import { ConfigProvider, App as AntdApp, theme as antdTheme } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import 'antd/dist/reset.css'
 import Home from './pages/Home'
 import { ChatProvider } from './contexts/ChatContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 
-function App() {
+const InnerApp: React.FC = () => {
+  const { isDark } = useTheme();
   return (
-    <ConfigProvider locale={zhCN}>
-      {/* 使用 AntdApp 组件提供 message context */}
+    <ConfigProvider locale={zhCN} theme={{ algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm }}>
       <AntdApp>
         <AuthProvider>
           <ChatProvider>
-            <div className="min-h-screen bg-gray-50">
-              {/* 主页面组件 */}
+            <div className="min-h-screen bg-app transition-colors">
               <Home />
             </div>
           </ChatProvider>
         </AuthProvider>
       </AntdApp>
     </ConfigProvider>
+  );
+};
+
+function App() {
+  return (
+    <ThemeProvider>
+      <InnerApp />
+    </ThemeProvider>
   )
 }
 

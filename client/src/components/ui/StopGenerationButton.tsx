@@ -39,7 +39,7 @@ const StopGenerationButton: React.FC<StopGenerationButtonProps> = ({
         bg-red-50 border-red-200 text-red-600 
         hover:bg-red-100 hover:border-red-300 hover:text-red-700
         focus:bg-red-100 focus:border-red-300 focus:text-red-700
-        disabled:bg-gray-50 disabled:border-gray-200 disabled:text-gray-400
+        disabled:bg-gray-50 disabled:border-surface disabled:text-gray-400
         transition-all duration-200 ease-in-out
         shadow-sm hover:shadow-md
         ${className}

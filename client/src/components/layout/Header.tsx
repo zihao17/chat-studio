@@ -11,6 +11,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useChatContext } from "../../contexts/ChatContext";
 import AuthModal from "../auth/AuthModal";
 import ModelSelector from "../ui/ModelSelector";
+import ThemeToggle from "../ui/ThemeToggle";
 
 interface HeaderProps {
   collapsed: boolean;
@@ -67,14 +68,14 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3">
+      <header className="bg-panel border-b border-surface px-4 sm:px-6 py-3 transition-colors">
         <div className="flex items-center justify-between">
           {/* 左侧区域 - 折叠按钮和模型选择器 */}
           <div className="flex items-center gap-3">
             <button
               onClick={onToggleSidebar}
               aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
-              className="flex items-center justify-center h-9 w-9 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+              className="flex items-center justify-center h-9 w-9 rounded-md text-gray-700 dark:text-gray-200 hover:bg-[var(--surface-hover)] transition-colors"
             >
               {collapsed ? (
                 <MenuUnfoldOutlined className="text-lg" />
@@ -93,9 +94,11 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
           </div>
 
           {/* 右侧用户区域 */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            {/* 主题切换 */}
+            <ThemeToggle />
             {/* 时间显示 */}
-            <div className="text-gray-600 text-sm font-medium hidden sm:block">
+            <div className="text-gray-600 dark:text-gray-300 text-sm font-medium hidden sm:block">
               2025.10.8 | Chat Studio
             </div>
 
@@ -106,13 +109,13 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
                 placement="bottomRight"
                 trigger={["click"]}
               >
-                <Space className="cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors">
+                <Space className="cursor-pointer hover:bg-[var(--surface-hover)] px-3 py-2 rounded-lg transition-colors">
                   <Avatar
                     size="small"
                     icon={<UserOutlined />}
                     className="bg-blue-500"
                   />
-                  <span className="text-gray-700 font-medium hidden sm:inline">
+                  <span className="text-gray-700 dark:text-gray-200 font-medium hidden sm:inline">
                     {state.user.username}
                   </span>
                 </Space>

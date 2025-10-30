@@ -122,11 +122,11 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
   return (
     <div
       className={`
-        relative bg-white rounded-xl border transition-all duration-200 shadow-sm
+        relative bg-panel rounded-xl border transition-all duration-200 shadow-sm
         ${
           isFocused
-            ? "border-blue-400 shadow-md"
-            : "border-gray-200 hover:border-gray-300"
+            ? "border-[var(--focus-border)] shadow-md"
+            : "border-surface hover:border-surface"
         }
       `}
     >
@@ -142,7 +142,7 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
           placeholder={placeholder}
           className="
             w-full resize-none border-none outline-none bg-transparent
-            text-base leading-6 placeholder-gray-400
+            text-base leading-6 placeholder-gray-400 dark:placeholder-gray-500
             min-h-[24px]
           "
           style={{
@@ -165,7 +165,8 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
             onClick={onFileUpload}
             className="
               flex items-center justify-center w-8 h-8 rounded-lg
-              text-gray-500 hover:text-blue-500 hover:bg-blue-50
+              text-gray-500 hover:text-blue-500 hover:bg-[var(--surface-hover)]
+              dark:text-gray-300
               transition-all duration-200
             "
             title="上传文件"
@@ -177,7 +178,8 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
             onClick={onKnowledgeBase}
             className="
               flex items-center justify-center w-8 h-8 rounded-lg
-              text-gray-500 hover:text-blue-500 hover:bg-blue-50
+              text-gray-500 hover:text-blue-500 hover:bg-[var(--surface-hover)]
+              dark:text-gray-300
               transition-all duration-200
             "
             title="知识库"
@@ -189,7 +191,8 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
             onClick={onWorkflow}
             className="
               flex items-center justify-center w-8 h-8 rounded-lg
-              text-gray-500 hover:text-blue-500 hover:bg-blue-50
+              text-gray-500 hover:text-blue-500 hover:bg-[var(--surface-hover)]
+              dark:text-gray-300
               transition-all duration-200
             "
             title="工作流"
@@ -207,7 +210,7 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
           className="
             flex items-center justify-center h-8 px-4 rounded-lg
             bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600
-            disabled:bg-gray-300 disabled:border-gray-300
+            disabled:bg-gray-300 disabled:border-surface
             transition-all duration-200
           "
         >

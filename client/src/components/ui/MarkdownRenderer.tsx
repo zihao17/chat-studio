@@ -31,32 +31,32 @@ interface TableProps {
  */
 const Table: React.FC<TableProps> = ({ children }) => (
   <div className="overflow-x-auto my-4">
-    <table className="min-w-full border-collapse border border-gray-300">
+    <table className="min-w-full border-collapse border border-surface">
       {children}
     </table>
   </div>
 );
 
 const TableHead: React.FC<TableProps> = ({ children }) => (
-  <thead className="bg-gray-50">
+  <thead className="bg-gray-50 dark:bg-gray-800">
     {children}
   </thead>
 );
 
 const TableRow: React.FC<TableProps> = ({ children }) => (
-  <tr className="border-b border-gray-200">
+  <tr className="border-b border-surface">
     {children}
   </tr>
 );
 
 const TableCell: React.FC<TableProps> = ({ children }) => (
-  <td className="border border-gray-300 px-4 py-2">
+  <td className="border border-surface px-4 py-2">
     {children}
   </td>
 );
 
 const TableHeaderCell: React.FC<TableProps> = ({ children }) => (
-  <th className="border border-gray-300 px-4 py-2 font-semibold text-left">
+  <th className="border border-surface px-4 py-2 font-semibold text-left">
     {children}
   </th>
 );
@@ -124,39 +124,39 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
           
           // 标题样式
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900">
+            <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900 dark:text-white">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xl font-bold mt-5 mb-3 text-gray-900">
+            <h2 className="text-xl font-bold mt-5 mb-3 text-gray-900 dark:text-white">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-900">
+            <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-900 dark:text-white">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-base font-semibold mt-3 mb-2 text-gray-900">
+            <h4 className="text-base font-semibold mt-3 mb-2 text-gray-900 dark:text-white">
               {children}
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-900">
+            <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-900 dark:text-white">
               {children}
             </h5>
           ),
           h6: ({ children }) => (
-            <h6 className="text-xs font-semibold mt-2 mb-1 text-gray-900">
+            <h6 className="text-xs font-semibold mt-2 mb-1 text-gray-900 dark:text-white">
               {children}
             </h6>
           ),
           
           // 引用样式
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 italic">
+            <blockquote className="border-l-4 border-accent pl-4 py-2 my-4 bg-blue-50 italic dark:bg-blue-900/30">
               {children}
             </blockquote>
           ),
@@ -174,7 +174,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
               href={href} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline"
+              className="text-blue-600 hover:text-blue-800 underline dark:text-blue-400 dark:hover:text-blue-300"
             >
               {children}
             </a>
@@ -182,26 +182,26 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
           
           // 强调样式
           strong: ({ children }) => (
-            <strong className="font-bold text-gray-900">
+            <strong className="font-bold text-gray-900 dark:text-white">
               {children}
             </strong>
           ),
           em: ({ children }) => (
-            <em className="italic text-gray-700">
+            <em className="italic text-gray-700 dark:text-white">
               {children}
             </em>
           ),
           
           // 删除线
           del: ({ children }) => (
-            <del className="line-through text-gray-500">
+            <del className="line-through text-gray-500 dark:text-gray-500">
               {children}
             </del>
           ),
           
           // 水平分割线
           hr: () => (
-            <hr className="my-6 border-t border-gray-300" />
+            <hr className="my-6 border-t border-surface" />
           ),
         }}
       >

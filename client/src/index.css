@@ -9,6 +9,37 @@
   --color-foreground: hsl(222.2 84% 4.9%);
 }
 
+/* 暗色变量覆盖（通过 html.dark 切换） */
+.dark {
+  --color-border: hsl(215 20% 20%);
+  --color-background: hsl(222 47% 5%);
+  --color-foreground: hsl(210 40% 98%);
+}
+
+/* 应用/面板背景变量（用于强制覆盖暗色媒体影响） */
+:root {
+  --app-bg: #f9fafb;    /* gray-50 */
+  --panel-bg: #ffffff;  /* white */
+  --surface: #f3f4f6; /* gray-100 */
+  --surface-hover: #e5e7eb; /* gray-200 */
+  --surface-border: #e5e7eb; /* gray-200 */
+  --accent-bg: #eff6ff; /* blue-50 */
+  --accent-border: #bfdbfe; /* blue-200 */
+  --accent-text: #2563eb; /* blue-600 */
+  --focus-border: #d1d5db; /* gray-300 */
+}
+.dark {
+  --app-bg: #0b0f19;   /* 近 gray-950 */
+  --panel-bg: #111827;  /* gray-900 */
+  --surface: #1f2937; /* gray-800 */
+  --surface-hover: #374151; /* gray-700 */
+  --surface-border: #374151; /* gray-700 */
+  --accent-bg: rgba(30, 64, 175, 0.2); /* blue-900/20 */
+  --accent-border: rgba(59, 130, 246, 0.5); /* blue-500/50 */
+  --accent-text: #e5e7eb; /* off-white for accents */
+  --focus-border: #e5e7eb; /* off-white */
+}
+
 /* Ant Design 样式重置 */
 @layer base {
   * {
@@ -16,6 +47,9 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  html, body, #root {
+    transition: background-color .25s ease, color .25s ease, border-color .25s ease;
   }
 }
 
@@ -28,12 +62,14 @@
 /* Markdown渲染样式 */
 @layer components {
   .markdown-body {
-    @apply text-gray-800 leading-relaxed;
+    @apply text-gray-800 leading-relaxed dark:text-white;
   }
 
   /* 代码块样式优化 */
   .markdown-body pre {
-    @apply bg-gray-50 text-gray-900 rounded-lg p-4 overflow-x-auto my-4 border border-gray-200;
+    @apply bg-gray-50 text-gray-900 rounded-lg p-4 overflow-x-auto my-4 border
+           dark:bg-gray-900 dark:text-gray-100;
+    border-color: var(--surface-border);
   }
 
   .markdown-body pre code {
@@ -42,7 +78,8 @@
 
   /* 行内代码样式 */
   .markdown-body code:not(pre code) {
-    @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono;
+    @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono
+           dark:bg-gray-800 dark:text-red-300;
   }
 
   /* 表格样式 */
@@ -52,11 +89,12 @@
 
   .markdown-body th,
   .markdown-body td {
-    @apply border border-gray-300 px-3 py-2 text-left;
+    @apply border px-3 py-2 text-left;
+    border-color: var(--surface-border);
   }
 
   .markdown-body th {
-    @apply bg-gray-50 font-semibold;
+    @apply bg-gray-50 font-semibold dark:bg-gray-800;
   }
 
   /* 列表间距优化 */
@@ -71,17 +109,44 @@
 
   /* 引用块样式 */
   .markdown-body blockquote {
-    @apply border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 italic text-gray-700;
+    @apply border-l-4 pl-4 py-2 my-4 bg-blue-50 italic text-gray-700 dark:bg-blue-900/30 dark:text-gray-300;
+    border-color: var(--accent-border);
   }
 
   /* 分割线样式 */
   .markdown-body hr {
-    @apply my-6 border-t border-gray-300;
+    @apply my-6 border-t;
+    border-top-color: var(--surface-border);
   }
 }
 
 /* 自定义工具类 */
 @layer utilities {
+  /* 主题背景工具类（使用 CSS 变量，确保亮色优先） */
+  .bg-app { background-color: var(--app-bg) !important; }
+  .bg-panel { background-color: var(--panel-bg) !important; }
+  .border-surface { border-color: var(--surface-border) !important; }
+  .border-accent { border-color: var(--accent-border) !important; }
+
+  /* Ant Design 输入在暗色下的边框聚焦颜色（白灰色） */
+  .dark .ant-input,
+  .dark .ant-input-affix-wrapper,
+  .dark .ant-input-outlined,
+  .dark .ant-input-textarea {
+    border-color: var(--surface-border) !important;
+  }
+  .dark .ant-input:focus,
+  .dark .ant-input-focused,
+  .dark .ant-input-affix-wrapper:focus,
+  .dark .ant-input-affix-wrapper-focused,
+  .dark .ant-input-outlined:focus,
+  .dark .ant-input-outlined:focus-within,
+  .dark textarea.ant-input:focus,
+  .dark textarea.ant-input:focus-within {
+    border-color: var(--focus-border) !important;
+    box-shadow: none !important;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -109,3 +174,35 @@
 .model-selector-dropdown .rc-virtual-list-scrollbar-thumb {
   display: none !important;
 }
+
+/* highlight.js 暗色主题覆盖（与 github.css 搭配） */
+.dark .hljs {
+  background: #0d1117 !important;
+  color: #c9d1d9 !important;
+}
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-literal {
+  color: #ff7b72;
+}
+.dark .hljs-title,
+.dark .hljs-name,
+.dark .hljs-section {
+  color: #d2a8ff;
+}
+.dark .hljs-string,
+.dark .hljs-attr,
+.dark .hljs-attribute {
+  color: #a5d6ff;
+}
+.dark .hljs-variable,
+.dark .hljs-template-variable {
+  color: #ffa657;
+}
+.dark .hljs-number,
+.dark .hljs-symbol,
+.dark .hljs-bullet {
+  color: #79c0ff;
+}
+.dark .hljs-addition { color: #3fb950; }
+.dark .hljs-deletion { color: #f85149; }

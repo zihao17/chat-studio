@@ -17,11 +17,14 @@ type ButtonType = "new-chat" | "history" | "knowledge" | "workflow";
 
 // 统一的按钮样式常量
 const BUTTON_STYLES = {
-  base: "w-full h-10 flex items-center rounded-xl border transition-all duration-200 cursor-pointer text-sm",
-  active: "bg-white border-blue-200 text-blue-600 font-bold",
-  inactive: "bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200",
+  base:
+    "w-full h-10 flex items-center rounded-xl border transition-all duration-200 cursor-pointer text-sm",
+  active:
+    "bg-[var(--accent-bg)] border-accent text-[var(--accent-text)] font-bold",
+  inactive:
+    "bg-[var(--surface)] border-surface text-gray-700 dark:text-gray-200 hover:bg-[var(--surface-hover)]",
   newChat:
-    "bg-blue-50 border-blue-200 font-bold hover:bg-blue-100 hover:border-blue-300",
+    "bg-[var(--accent-bg)] border-accent font-bold hover:bg-[var(--accent-bg)]",
 };
 
 // 可复用的侧边栏按钮组件
@@ -52,18 +55,14 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
       : BUTTON_STYLES.inactive
   }`;
 
-  const iconColor = isNewChat ? "rgb(0, 87, 255)" : undefined;
-
   return (
     <button
       onClick={onClick}
-      className={buttonClasses}
-      style={isNewChat ? { color: "rgb(0, 87, 255)" } : {}}
+      className={`${buttonClasses} ${isNewChat ? "text-blue-600 dark:text-gray-100" : ""}`}
       title={label} // 添加 tooltip 提示
     >
       <span
         className={showLabel ? "mr-3" : ""}
-        style={iconColor ? { color: iconColor } : {}}
       >
         {icon}
       </span>
@@ -170,12 +169,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                 key={session.id}
                 onClick={() => handleConversationClick(session.id)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm font-sans
-                           hover:bg-gray-200 transition-colors duration-200
+                           hover:bg-[var(--surface-hover)] transition-colors duration-200
                            truncate cursor-pointer flex items-center justify-between group
                            ${
                              session.id === currentSessionId
-                               ? "bg-blue-50 text-blue-600 border border-blue-200"
-                               : "text-black"
+                               ? "bg-[var(--accent-bg)] text-[var(--accent-text)] border border-accent"
+                               : "text-black dark:text-gray-100"
                            }`}
                 title={session.title}
               >
@@ -183,7 +182,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                 {/* 删除按钮 */}
                 <button
                   onClick={(e) => handleDeleteSession(session.id, e)}
-                  className="opacity-0 group-hover:opacity-100 ml-2 p-1 rounded hover:bg-red-100 
+                  className="opacity-0 group-hover:opacity-100 ml-2 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 
                             text-gray-400 hover:text-red-500 transition-all duration-200"
                   title="删除对话"
                 >
@@ -231,7 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
       ref={containerRef}
       className={`${
         collapsed ? "w-16 p-2 items-center" : "w-64 p-4"
-      } h-screen bg-gray-50 flex flex-col border-r border-gray-200 transition-all duration-300 ease-in-out overflow-hidden`}
+      } h-screen bg-panel flex flex-col border-r border-surface transition-all duration-300 ease-in-out overflow-hidden`}
     >
       {/* 1. 顶部品牌区 */}
       <div
@@ -240,11 +239,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
         }`}
       >
         {collapsed || !isExpandedReady ? (
-          <h1 className="text-xl font-black text-blue-600 font-sans tracking-tight text-center whitespace-nowrap">
+          <h1 className="text-xl font-black text-blue-600 dark:text-gray-100 font-sans tracking-tight text-center whitespace-nowrap">
             Chat
           </h1>
         ) : (
-          <h1 className="text-2xl font-black text-blue-600 font-sans tracking-tight whitespace-nowrap">
+          <h1 className="text-2xl font-black text-blue-600 dark:text-gray-100 font-sans tracking-tight whitespace-nowrap">
             Chat Studio
           </h1>
         )}
@@ -302,23 +301,23 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
       {collapsed || !isExpandedReady ? (
         <div className="flex-1 w-full invisible" />
       ) : (
-        <div className="flex-1 overflow-y-auto border-t border-gray-200 w-full">
+        <div className="flex-1 overflow-y-auto border-t border-surface w-full">
           {renderContentArea()}
         </div>
       )}
 
       {/* 5. 底部用户信息 + 悬停抽屉菜单 */}
-      <div className={`mt-4 pt-4 border-t border-gray-200 w-full ${collapsed ? "pt-2" : ""}`}>
+      <div className={`mt-4 pt-4 border-t border-surface w-full ${collapsed ? "pt-2" : ""}`}>
         <div className="relative group">
           {/* 用户信息行（与 Header 风格一致） */}
           <div
             className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
               collapsed ? "justify-center" : ""
-            } hover:bg-gray-100 cursor-pointer`}
+            } hover:bg-[var(--surface-hover)] cursor-pointer`}
             title={authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
           >
             <Avatar size={32} icon={<UserOutlined />} className="bg-blue-500" />
-            <span className={`${collapsed || !isExpandedReady ? "hidden" : "block"} text-gray-800 font-medium`}>
+            <span className={`${collapsed || !isExpandedReady ? "hidden" : "block"} text-gray-800 dark:text-white font-medium`}>
               {authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
             </span>
           </div>
@@ -329,13 +328,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
               collapsed ? "hidden" : ""
             }`}
           >
-            <div
-              className="max-h-0 opacity-0 translate-y-2 group-hover:max-h-28 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 ease-out"
+            <div className="max-h-0 opacity-0 translate-y-2 group-hover:max-h-28 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 ease-out"
             >
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm py-1">
+              <div className="bg-panel border border-surface rounded-lg shadow-sm py-1">
                 {/* 设置 - 占位 */}
                 <div
-                  className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:bg-gray-50 cursor-not-allowed"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:bg-[var(--surface-hover)] dark:text-gray-500 cursor-not-allowed"
                   title="设置（即将推出）"
                 >
                   <SettingOutlined />
@@ -344,7 +342,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                 {/* 聊天高级设置 */}
                 <button
                   onClick={() => setAdvModalOpen(true)}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--surface-hover)] dark:text-gray-200 cursor-pointer"
                 >
                   <SlidersOutlined />
                   <span className="text-sm">聊天高级设置</span>
