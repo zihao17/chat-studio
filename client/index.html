@@ -12,11 +12,12 @@
       // 提前应用主题，避免闪烁
       (function () {
         try {
-          var key = 'chat-studio-theme';
+          var key = "chat-studio-theme";
           var saved = localStorage.getItem(key);
-          var isDark = saved === 'dark'; // 默认亮色，不跟随系统
+          var isDark = saved === "dark"; // 默认亮色，不跟随系统
           var root = document.documentElement;
-          if (isDark) root.classList.add('dark'); else root.classList.remove('dark');
+          if (isDark) root.classList.add("dark");
+          else root.classList.remove("dark");
         } catch (e) {
           // ignore
         }
@@ -25,7 +26,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- TEMP: 反缓存版本参数（调试完成后删除 ?v=...） -->
-    <script type="module" src="/src/main.tsx?v=DEV-NO-CACHE-20251030"></script>
+    <!-- TEMP: 反缓存版本参数（调试完成后删除 ?v=...  ?v=DEV-NO-CACHE-20251030） -->
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
