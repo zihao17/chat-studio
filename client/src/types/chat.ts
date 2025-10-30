@@ -72,6 +72,14 @@ export interface ChatContextType {
 
   // 智能新对话逻辑
   handleNewChat: () => void;
+
+  // 高级设置：温度、top_p 与系统提示词
+  temperature: number;
+  topP: number;
+  systemPrompt: string;
+  setTemperature: (v: number) => void;
+  setTopP: (v: number) => void;
+  setSystemPrompt: (v: string) => void;
 }
 
 // 本地存储键名常量
@@ -79,11 +87,16 @@ export const STORAGE_KEYS = {
   CHAT_SESSIONS: "chat-studio-sessions",
   CURRENT_SESSION_ID: "chat-studio-current-session-id",
   CURRENT_MODEL: "chat-studio-current-model",
+  ADVANCED_SETTINGS: "chat-studio-advanced-settings",
 } as const;
 
 // 默认欢迎消息
 export const DEFAULT_WELCOME_MESSAGE =
   "你好！我是 Chat Studio AI 助手，有什么可以帮助您的吗？";
+
+// 默认系统提示词（作为占位符展示，不默认生效）
+export const DEFAULT_SYSTEM_PROMPT_PLACEHOLDER =
+  "你是 Chat Studio 的 AI 助手。请以清晰、简洁且结构化的方式作答，必要时使用项目符号或表格帮助理解。避免编造信息。";
 
 // 生成唯一ID的工具函数
 export const generateId = (): string => {

@@ -21,6 +21,10 @@ export const useChatSessions = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<string>("Qwen/Qwen3-Next-80B-A3B-Instruct"); // 默认模型
+  // 高级设置：温度、top_p、系统提示词（系统提示词默认不生效，仅作占位展示）
+  const [temperature, setTemperature] = useState<number>(0.7);
+  const [topP, setTopP] = useState<number>(0.9);
+  const [systemPrompt, setSystemPrompt] = useState<string>("");
   // 存储每个会话的AbortController，用于中断流式响应
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // 标记是否已经进行过登录后的数据同步
@@ -192,10 +196,23 @@ export const useChatSessions = () => {
         STORAGE_KEYS.CURRENT_SESSION_ID
       );
       const savedModel = localStorage.getItem(STORAGE_KEYS.CURRENT_MODEL);
+      const savedAdvanced = localStorage.getItem(STORAGE_KEYS.ADVANCED_SETTINGS);
 
       // 恢复模型选择
       if (savedModel) {
         setCurrentModel(savedModel);
+      }
+
+      // 恢复高级设置
+      if (savedAdvanced) {
+        try {
+          const parsed = JSON.parse(savedAdvanced) as { temperature?: number; topP?: number; systemPrompt?: string };
+          const clamp = (v: number) => Math.min(1.0, Math.max(0.1, v));
+          const round1 = (v: number) => Math.round(v * 10) / 10;
+          if (typeof parsed.temperature === 'number') setTemperature(round1(clamp(parsed.temperature)));
+          if (typeof parsed.topP === 'number') setTopP(round1(clamp(parsed.topP)));
+          if (typeof parsed.systemPrompt === 'string') setSystemPrompt(parsed.systemPrompt.trim() === '' ? '' : parsed.systemPrompt);
+        } catch {}
       }
 
       if (savedSessions) {
@@ -220,6 +237,14 @@ export const useChatSessions = () => {
       console.error("加载会话数据失败:", error);
     }
   }, [authState.isAuthenticated]);
+
+  // 持久化高级设置到本地
+  useEffect(() => {
+    const payload = JSON.stringify({ temperature, topP, systemPrompt });
+    try {
+      localStorage.setItem(STORAGE_KEYS.ADVANCED_SETTINGS, payload);
+    } catch {}
+  }, [temperature, topP, systemPrompt]);
 
   // 创建新会话
   const createNewSession = useCallback((): ChatSession => {
@@ -514,7 +539,12 @@ export const useChatSessions = () => {
             });
           },
           currentModel, // 使用当前选中的模型
-          abortController // 传入AbortController
+          {
+            temperature,
+            top_p: topP,
+            abortController,
+            user_system_prompt: systemPrompt,
+          }
         );
 
         // 流式传输完成，清除加载状态（仅在未发生错误时更新最终内容）
@@ -844,5 +874,12 @@ export const useChatSessions = () => {
     stopGeneration,
     setCurrentModel: handleSetCurrentModel,
     handleNewChat,
+    // 高级设置导出
+    temperature,
+    topP,
+    systemPrompt,
+    setTemperature,
+    setTopP,
+    setSystemPrompt,
   };
 };

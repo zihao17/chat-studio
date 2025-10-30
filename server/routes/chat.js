@@ -103,7 +103,7 @@ function createOpenAIClient(serviceType) {
  * 参数校验中间件
  */
 function validateChatRequest(req, res, next) {
-  const { messages, model, temperature, max_tokens, top_p } = req.body;
+  const { messages, model, temperature, max_tokens, top_p, user_system_prompt } = req.body;
 
   // 校验 messages 参数
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -139,7 +139,10 @@ function validateChatRequest(req, res, next) {
   }
 
   // 校验 temperature 参数（可选）
-  if (temperature !== undefined && (typeof temperature !== "number" || temperature < 0 || temperature > 2)) {
+  if (
+    temperature !== undefined &&
+    (typeof temperature !== "number" || temperature < 0 || temperature > 2)
+  ) {
     return res.status(400).json({
       error: "Invalid request",
       message: "temperature 参数必须是 0-2 之间的数字",
@@ -147,7 +150,10 @@ function validateChatRequest(req, res, next) {
   }
 
   // 校验 max_tokens 参数（可选）
-  if (max_tokens !== undefined && (typeof max_tokens !== "number" || max_tokens < 1)) {
+  if (
+    max_tokens !== undefined &&
+    (typeof max_tokens !== "number" || max_tokens < 1)
+  ) {
     return res.status(400).json({
       error: "Invalid request",
       message: "max_tokens 参数必须是大于 0 的数字",
@@ -155,10 +161,24 @@ function validateChatRequest(req, res, next) {
   }
 
   // 校验 top_p 参数（可选）
-  if (top_p !== undefined && (typeof top_p !== "number" || top_p < 0 || top_p > 1)) {
+  if (
+    top_p !== undefined &&
+    (typeof top_p !== "number" || top_p < 0 || top_p > 1)
+  ) {
     return res.status(400).json({
       error: "Invalid request",
       message: "top_p 参数必须是 0-1 之间的数字",
+    });
+  }
+
+  // 校验 user_system_prompt 参数（可选）
+  if (
+    user_system_prompt !== undefined &&
+    typeof user_system_prompt !== "string"
+  ) {
+    return res.status(400).json({
+      error: "Invalid request",
+      message: "user_system_prompt 必须是字符串",
     });
   }
 
@@ -177,6 +197,7 @@ router.post("/chat", validateChatRequest, async (req, res) => {
     temperature = 0.7,
     max_tokens = 10000,
     top_p = 0.9, // 添加 top_p 参数支持，默认值 0.9
+    user_system_prompt,
   } = req.body;
 
   // 记录开始时间
@@ -190,18 +211,37 @@ router.post("/chat", validateChatRequest, async (req, res) => {
     // 创建对应的 OpenAI 客户端
     const openai = createOpenAIClient(serviceType);
 
-    // 确保有系统消息
-    const messagesWithSystem =
-      messages[0]?.role === "system"
-        ? messages
-        : [
-            {
-              role: "system",
-              content:
-                "你是 Chat Studio 智能伙伴，一个专为学习、工作与生活场景设计的 AI 助手，智能贴心且全面。请以清晰、自然、有帮助的方式回应用户。始终使用简体中文，语言流畅，语气可随用户风格灵活调整（专业严谨或轻松亲切）。擅长解答知识问题、提供建议、辅助（如代码、文本、生活等），并能帮用户梳理逻辑、解决实际问题。",
-            },
-            ...messages,
-          ];
+    // 平台系统提示词（A）
+    const platformSystemPrompt =
+      "你是 Chat Studio 智能伙伴，一个专为学习、工作与生活场景设计的 AI 助手，智能贴心且全面。请以清晰、自然、有帮助的方式回应用户。始终使用简体中文，语言流畅，语气可随用户风格灵活调整（专业严谨或轻松亲切）。擅长解答知识问题、提供建议、辅助（如代码、文本、生活等），并能帮用户梳理逻辑、解决实际问题。";
+
+    // 用户自定义系统提示词（B）
+    const userSystemPrompt =
+      user_system_prompt && typeof user_system_prompt === "string"
+        ? user_system_prompt.trim()
+        : "";
+
+    // 轻量级安全合规指令（S）
+    const safetyPrompt =
+      "请遵守法律法规与平台政策，不输出违法、隐私泄露、恶意利用指引、血腥暴力、仇恨歧视或成人露骨内容。涉及医疗、法律、金融与安全等敏感领域，仅提供一般性信息并提示咨询专业人士；如与系统指令或合规要求冲突，以系统指令与合规要求优先。";
+
+    // 合成最终系统提示词（C = A + B + S）
+    const parts = [platformSystemPrompt];
+    if (userSystemPrompt) parts.push(userSystemPrompt);
+    parts.push(safetyPrompt);
+    const finalSystemPrompt = parts.join("\n\n");
+
+    // 过滤掉用户传来的 system 消息，统一由服务端注入 C
+    const nonSystemMessages = Array.isArray(messages)
+      ? messages.filter((m) => m && m.role !== "system")
+      : [];
+
+    const messagesWithSystem = [
+      { role: "system", content: finalSystemPrompt },
+      ...nonSystemMessages,
+    ];
+
+    // （日志已移除）
 
     // 设置请求超时
     const timeout = parseInt(process.env.REQUEST_TIMEOUT) || 60000;

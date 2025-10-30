@@ -7,6 +7,10 @@ import {
   DeleteOutlined,
 } from "@ant-design/icons";
 import { useChatContext } from "../../contexts/ChatContext";
+import { useAuth } from "../../contexts/AuthContext";
+import { Avatar } from "antd";
+import { UserOutlined, SettingOutlined, SlidersOutlined } from "@ant-design/icons";
+import ChatAdvancedSettingsModal from "../ui/ChatAdvancedSettingsModal";
 
 // 定义按钮类型
 type ButtonType = "new-chat" | "history" | "knowledge" | "workflow";
@@ -124,6 +128,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
     switchToSession,
     deleteSession,
   } = useChatContext();
+  const { state: authState } = useAuth();
+  const [advModalOpen, setAdvModalOpen] = useState(false);
 
   // 处理按钮点击
   const handleButtonClick = (buttonType: ButtonType) => {
@@ -301,38 +307,56 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
         </div>
       )}
 
-      {/* 5. 底部个人信息区：保持固定在底部（通过不可见占位实现） */}
-      <div
-        className={`mt-4 pt-4 border-t border-gray-200 w-full ${
-          collapsed ? "pt-2" : ""
-        }`}
-      >
-        <div
-          className={`flex items-center ${collapsed ? "justify-center" : ""}`}
-        >
-          {/* 圆形头像 */}
+      {/* 5. 底部用户信息 + 悬停抽屉菜单 */}
+      <div className={`mt-4 pt-4 border-t border-gray-200 w-full ${collapsed ? "pt-2" : ""}`}>
+        <div className="relative group">
+          {/* 用户信息行（与 Header 风格一致） */}
           <div
-            className={`w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center ${
-              collapsed || !isExpandedReady ? "mr-0" : "mr-2"
-            }`}
+            className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
+              collapsed ? "justify-center" : ""
+            } hover:bg-gray-100 cursor-pointer`}
+            title={authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
           >
-            <span
-              className="text-black font-bold text-sm
-                             max-md:text-xs"
-            >
-              用
+            <Avatar size={32} icon={<UserOutlined />} className="bg-blue-500" />
+            <span className={`${collapsed || !isExpandedReady ? "hidden" : "block"} text-gray-800 font-medium`}>
+              {authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
             </span>
           </div>
-          {/* 用户名 */}
-          <span
-            className={`text-black font-bold text-sm font-sans ${
-              collapsed || !isExpandedReady ? "hidden" : ""
+
+          {/* 悬停抽屉菜单：自底向上展开 */}
+          <div
+            className={`absolute left-0 right-0 bottom-12 overflow-hidden px-1 ${
+              collapsed ? "hidden" : ""
             }`}
           >
-            用户名
-          </span>
+            <div
+              className="max-h-0 opacity-0 translate-y-2 group-hover:max-h-28 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 ease-out"
+            >
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm py-1">
+                {/* 设置 - 占位 */}
+                <div
+                  className="flex items-center gap-2 px-3 py-2 text-gray-400 hover:bg-gray-50 cursor-not-allowed"
+                  title="设置（即将推出）"
+                >
+                  <SettingOutlined />
+                  <span className="text-sm">设置</span>
+                </div>
+                {/* 聊天高级设置 */}
+                <button
+                  onClick={() => setAdvModalOpen(true)}
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                >
+                  <SlidersOutlined />
+                  <span className="text-sm">聊天高级设置</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* 高级设置模态 */}
+      <ChatAdvancedSettingsModal open={advModalOpen} onClose={() => setAdvModalOpen(false)} />
     </div>
   );
 };

@@ -53,6 +53,14 @@ function handleStreamError(error: unknown): string {
  * @param model 使用的模型
  * @param abortController 用于中断请求的控制器
  */
+export interface ChatRequestOptions {
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  abortController?: AbortController;
+  user_system_prompt?: string;
+}
+
 export async function callAIChatStream(
   messages: ChatMessage[],
   onChunk: (chunk: string) => void,
@@ -65,7 +73,7 @@ export async function callAIChatStream(
     completionTokens: number;
   }) => void,
   model: string = "Qwen/Qwen3-Next-80B-A3B-Instruct",
-  abortController?: AbortController
+  options?: ChatRequestOptions
 ): Promise<void> {
   try {
     // 调用本地后端代理接口（流式）
@@ -80,11 +88,12 @@ export async function callAIChatStream(
         messages,
         model,
         stream: true,
-        temperature: 0.7,
-        max_tokens: 10000, // 增加 max_tokens 以支持更长的回复
-        top_p: 0.9, // 添加 top_p 参数，默认值 0.9
+        temperature: options?.temperature ?? 0.7,
+        max_tokens: options?.max_tokens ?? 10000, // 增加 max_tokens 以支持更长的回复
+        top_p: options?.top_p ?? 0.9, // 核采样参数
+        user_system_prompt: options?.user_system_prompt,
       }),
-      signal: abortController?.signal, // 添加中断信号
+      signal: options?.abortController?.signal, // 添加中断信号
     });
 
     if (!response.ok) {
