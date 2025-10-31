@@ -22,9 +22,9 @@ const BUTTON_STYLES = {
   active:
     "bg-[var(--accent-bg)] border-accent text-[var(--accent-text)] font-bold",
   inactive:
-    "bg-[var(--surface)] border-surface text-gray-700 dark:text-gray-200 hover:bg-[var(--surface-hover)]",
+    "bg-[var(--surface)] border-surface text-foreground hover:bg-[var(--surface-hover)]",
   newChat:
-    "bg-[var(--accent-bg)] border-accent font-bold hover:bg-[var(--accent-bg)]",
+    "bg-[var(--accent-bg)] border-accent font-bold hover:bg-[var(--accent-bg)] text-[var(--accent-text)]",
 };
 
 // 可复用的侧边栏按钮组件
@@ -58,7 +58,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
   return (
     <button
       onClick={onClick}
-      className={`${buttonClasses} ${isNewChat ? "text-blue-600 dark:text-gray-100" : ""}`}
+      className={`${buttonClasses}`}
       title={label} // 添加 tooltip 提示
     >
       <span
@@ -174,7 +174,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                            ${
                              session.id === currentSessionId
                                ? "bg-[var(--accent-bg)] text-[var(--accent-text)] border border-accent"
-                               : "text-black dark:text-gray-100"
+                               : "text-foreground"
                            }`}
                 title={session.title}
               >
@@ -239,11 +239,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
         }`}
       >
         {collapsed || !isExpandedReady ? (
-          <h1 className="text-xl font-black text-blue-600 dark:text-gray-100 font-sans tracking-tight text-center whitespace-nowrap">
+          <h1 className="text-xl font-black text-foreground font-sans tracking-tight text-center whitespace-nowrap">
             Chat
           </h1>
         ) : (
-          <h1 className="text-2xl font-black text-blue-600 dark:text-gray-100 font-sans tracking-tight whitespace-nowrap">
+          <h1 className="text-2xl font-black text-[var(--accent-text)] font-sans tracking-tight whitespace-nowrap">
             Chat Studio
           </h1>
         )}
@@ -317,7 +317,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
             title={authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
           >
             <Avatar size={32} icon={<UserOutlined />} className="bg-blue-500" />
-            <span className={`${collapsed || !isExpandedReady ? "hidden" : "block"} text-gray-800 dark:text-white font-medium`}>
+            <span className={`${collapsed || !isExpandedReady ? "hidden" : "block"} text-foreground font-medium`}>
               {authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
             </span>
           </div>

@@ -65,7 +65,7 @@ const TableHeaderCell: React.FC<TableProps> = ({ children }) => (
  * MarkdownRenderer组件
  * 使用React.memo优化性能，避免流式更新时不必要的重渲染
  */
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   isStreaming = false,
   className = '',
@@ -124,32 +124,32 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
           
           // 标题样式
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-bold mt-6 mb-4">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xl font-bold mt-5 mb-3 text-gray-900 dark:text-white">
+            <h2 className="text-xl font-bold mt-5 mb-3">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-900 dark:text-white">
+            <h3 className="text-lg font-semibold mt-4 mb-2">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-base font-semibold mt-3 mb-2 text-gray-900 dark:text-white">
+            <h4 className="text-base font-semibold mt-3 mb-2">
               {children}
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="text-sm font-semibold mt-2 mb-1 text-gray-900 dark:text-white">
+            <h5 className="text-sm font-semibold mt-2 mb-1">
               {children}
             </h5>
           ),
           h6: ({ children }) => (
-            <h6 className="text-xs font-semibold mt-2 mb-1 text-gray-900 dark:text-white">
+            <h6 className="text-xs font-semibold mt-2 mb-1">
               {children}
             </h6>
           ),
@@ -182,12 +182,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
           
           // 强调样式
           strong: ({ children }) => (
-            <strong className="font-bold text-gray-900 dark:text-white">
+            <strong className="font-bold">
               {children}
             </strong>
           ),
           em: ({ children }) => (
-            <em className="italic text-gray-700 dark:text-white">
+            <em className="italic">
               {children}
             </em>
           ),
@@ -209,8 +209,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({
       </ReactMarkdown>
     </div>
   );
-});
-
-MarkdownRenderer.displayName = 'MarkdownRenderer';
+};
 
 export default MarkdownRenderer;

@@ -62,7 +62,9 @@
 /* Markdown渲染样式 */
 @layer components {
   .markdown-body {
-    @apply text-gray-800 leading-relaxed dark:text-white;
+    /* 不在此处设置颜色，统一继承父级（通常为 text-foreground 或 body） */
+    @apply leading-relaxed;
+    color: inherit;
   }
 
   /* 代码块样式优化 */

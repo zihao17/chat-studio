@@ -33,7 +33,7 @@ const ChatAdvancedSettingsModal: React.FC<ChatAdvancedSettingsModalProps> = ({
       open={open}
       onCancel={onClose}
       onOk={onClose}
-      title={<div className="text-gray-800 dark:text-white">聊天高级设置</div>}
+      title={<div className="text-foreground">聊天高级设置</div>}
       width={720}
       okText="完成"
       cancelText="取消"
@@ -42,7 +42,7 @@ const ChatAdvancedSettingsModal: React.FC<ChatAdvancedSettingsModalProps> = ({
         {/* Temperature */}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-gray-800 dark:text-white font-medium">温度</span>
+            <span className="text-foreground font-medium">温度</span>
             <Tooltip title="温度（Temperature）：控制回答的随机程度。值越小，输出越确定、可预测；值越大，输出越具有创造力，但也更跳跃（默认值为0.7）">
               <InfoCircleOutlined className="text-gray-400 dark:text-gray-400" />
             </Tooltip>
@@ -77,7 +77,7 @@ const ChatAdvancedSettingsModal: React.FC<ChatAdvancedSettingsModalProps> = ({
         {/* Top P */}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-gray-800 dark:text-white font-medium">Top_P</span>
+            <span className="text-foreground font-medium">Top_P</span>
             <Tooltip title="Top_P：控制回答的词汇范围。值越小，越聚焦高概率词，回答更收敛；值越大，AI回复的词汇范围越大，越多样化（默认值为0.9）">
               <InfoCircleOutlined className="text-gray-400 dark:text-gray-400" />
             </Tooltip>
@@ -112,7 +112,7 @@ const ChatAdvancedSettingsModal: React.FC<ChatAdvancedSettingsModalProps> = ({
         {/* System Prompt */}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-gray-800 dark:text-white font-medium">系统提示词</span>
+            <span className="text-foreground font-medium">系统提示词</span>
             <Tooltip title="为模型设定角色与行为边界。留空则不发送系统提示词。">
               <InfoCircleOutlined className="text-gray-400 dark:text-gray-400" />
             </Tooltip>

@@ -98,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
             {/* 主题切换 */}
             <ThemeToggle />
             {/* 时间显示 */}
-            <div className="text-gray-600 dark:text-gray-300 text-sm font-medium hidden sm:block">
+            <div className="text-gray-800 dark:text-gray-300 text-sm font-medium hidden sm:block">
               2025.10.8 | Chat Studio
             </div>
 

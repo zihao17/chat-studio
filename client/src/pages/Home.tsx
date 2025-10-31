@@ -333,7 +333,7 @@ const Home: React.FC = () => {
             {/* 欢迎消息 - 仅在没有消息时显示 */}
             {showWelcome && (
               <div className="w-full">
-                <div className="text-gray-800 dark:text-white text-left break-words whitespace-pre-wrap">
+                <div className="text-foreground text-left break-words whitespace-pre-wrap">
                   {DEFAULT_WELCOME_MESSAGE}
                 </div>
               </div>
@@ -344,7 +344,7 @@ const Home: React.FC = () => {
               <div key={message.id} className="w-full">
                 {message.role === "assistant" ? (
                   // AI消息 - 使用MarkdownRenderer渲染，支持流式渲染
-                  <div className="text-gray-800 dark:text-white text-left break-words">
+                  <div className="text-foreground text-left break-words">
                     {message.isLoading ? (
                       <div className="flex items-start gap-2">
                         <LoadingOutlined className="text-blue-500 mt-1" />
