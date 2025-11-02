@@ -9,7 +9,11 @@ import {
 import { useChatContext } from "../../contexts/ChatContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Avatar } from "antd";
-import { UserOutlined, SettingOutlined, SlidersOutlined } from "@ant-design/icons";
+import {
+  UserOutlined,
+  SettingOutlined,
+  SlidersOutlined,
+} from "@ant-design/icons";
 import ChatAdvancedSettingsModal from "../ui/ChatAdvancedSettingsModal";
 
 // 定义按钮类型
@@ -17,8 +21,7 @@ type ButtonType = "new-chat" | "history" | "knowledge" | "workflow";
 
 // 统一的按钮样式常量
 const BUTTON_STYLES = {
-  base:
-    "w-full h-10 flex items-center rounded-xl border transition-all duration-200 cursor-pointer text-sm",
+  base: "w-full h-10 flex items-center rounded-xl border transition-all duration-200 cursor-pointer text-sm",
   active:
     "bg-[var(--accent-bg)] border-accent text-[var(--accent-text)] font-bold",
   inactive:
@@ -61,11 +64,7 @@ const SidebarButton: React.FC<SidebarButtonProps> = ({
       className={`${buttonClasses}`}
       title={label} // 添加 tooltip 提示
     >
-      <span
-        className={showLabel ? "mr-3" : ""}
-      >
-        {icon}
-      </span>
+      <span className={showLabel ? "mr-3" : ""}>{icon}</span>
       <span
         className={`${isActive || isNewChat ? "font-bold" : ""} ${
           showLabel ? "" : "hidden"
@@ -307,29 +306,42 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
       )}
 
       {/* 5. 底部用户信息 + 悬停抽屉菜单 */}
-      <div className={`mt-4 pt-4 border-t border-surface w-full ${collapsed ? "pt-2" : ""}`}>
+      <div
+        className={`mt-4 pt-4 border-t border-surface w-full ${
+          collapsed ? "pt-2" : ""
+        }`}
+      >
         <div className="relative group">
           {/* 用户信息行（与 Header 风格一致） */}
           <div
             className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
               collapsed ? "justify-center" : ""
             } hover:bg-[var(--surface-hover)] cursor-pointer`}
-            title={authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
+            title={
+              authState.isAuthenticated && authState.user
+                ? authState.user.username
+                : "游客"
+            }
           >
             <Avatar size={32} icon={<UserOutlined />} className="bg-blue-500" />
-            <span className={`${collapsed || !isExpandedReady ? "hidden" : "block"} text-foreground font-medium`}>
-              {authState.isAuthenticated && authState.user ? authState.user.username : "游客"}
+            <span
+              className={`${
+                collapsed || !isExpandedReady ? "hidden" : "block"
+              } text-foreground font-medium`}
+            >
+              {authState.isAuthenticated && authState.user
+                ? authState.user.username
+                : "游客"}
             </span>
           </div>
 
           {/* 悬停抽屉菜单：自底向上展开 */}
           <div
-            className={`absolute left-0 right-0 bottom-8 overflow-hidden px-1 ${
+            className={`absolute left-0 right-0 bottom-12 overflow-hidden px-1 ${
               collapsed ? "hidden" : ""
             }`}
           >
-            <div className="max-h-0 opacity-0 translate-y-2 transition-all duration-200 ease-out delay-150 group-hover:delay-0 group-hover:max-h-28 group-hover:opacity-100 group-hover:translate-y-0"
-            >
+            <div className="max-h-0 opacity-0 translate-y-2 transition-all duration-200 ease-out delay-150 group-hover:delay-0 group-hover:max-h-28 group-hover:opacity-100 group-hover:translate-y-0">
               <div className="bg-panel border border-surface rounded-lg shadow-sm py-1">
                 {/* 设置 - 占位 */}
                 <div
@@ -354,7 +366,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
       </div>
 
       {/* 高级设置模态 */}
-      <ChatAdvancedSettingsModal open={advModalOpen} onClose={() => setAdvModalOpen(false)} />
+      <ChatAdvancedSettingsModal
+        open={advModalOpen}
+        onClose={() => setAdvModalOpen(false)}
+      />
     </div>
   );
 };

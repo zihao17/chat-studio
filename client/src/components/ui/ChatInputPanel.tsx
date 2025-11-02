@@ -13,6 +13,8 @@ export interface ChatInputPanelRef {
   focus: () => void;
 }
 
+import type { AttachmentMeta } from "../../types/chat";
+
 interface ChatInputPanelProps {
   value: string;
   onChange: (value: string) => void;
@@ -21,7 +23,14 @@ interface ChatInputPanelProps {
   placeholder?: string;
   disabled?: boolean;
   loading?: boolean;
+  // 旧接口（回退）：点击回形针时触发
   onFileUpload?: () => void;
+  // 新增：附件相关
+  attachments?: AttachmentMeta[];
+  isUploading?: boolean;
+  progressMap?: Record<string, number>;
+  onAttachFiles?: (files: File[]) => void;
+  onRemoveAttachment?: (id: string) => void;
   onKnowledgeBase?: () => void;
   onWorkflow?: () => void;
 }
@@ -35,11 +44,17 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
   disabled = false,
   loading = false,
   onFileUpload,
+  attachments = [],
+  isUploading = false,
+  progressMap = {},
+  onAttachFiles,
+  onRemoveAttachment,
   onKnowledgeBase,
   onWorkflow,
 }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 暴露聚焦方法给父组件
   useImperativeHandle(ref, () => ({
@@ -119,6 +134,22 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
   const handleFocus = () => setIsFocused(true);
   const handleBlur = () => setIsFocused(false);
 
+  const handleFileButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+      return;
+    }
+    if (onFileUpload) onFileUpload();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length && onAttachFiles) {
+      onAttachFiles(files);
+    }
+  };
+
   return (
     <div
       className={`
@@ -130,6 +161,44 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
         }
       `}
     >
+      {/* 附件区域 */}
+      {attachments && attachments.length > 0 && (
+        <div className="px-4 pt-4">
+          <div className="flex flex-col gap-2">
+            {attachments.map((f) => (
+              <div key={f.id} className="w-full">
+                {/* 内联简版附件卡片，展示snippet */}
+                <div className="p-3 rounded-lg bg-[var(--surface-hover)] border border-surface">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="text-foreground">
+                      <span className="font-medium mr-2">{f.name}</span>
+                      <span className="text-gray-400 mr-2">{f.ext.toUpperCase()}</span>
+                      {isUploading ? (
+                        <span className="text-blue-500">{typeof (progressMap?.[f.id]) === 'number' ? `${progressMap[f.id]}%` : '解析中'}</span>
+                      ) : null}
+                    </div>
+                    {onRemoveAttachment && (
+                      <button
+                        className="text-gray-400 hover:text-red-500 transition"
+                        onClick={() => onRemoveAttachment(f.id)}
+                        title="移除附件"
+                      >
+                        移除
+                      </button>
+                    )}
+                  </div>
+                  {f.snippet && (
+                    <div className="mt-2 text-sm text-foreground whitespace-pre-wrap break-words">
+                      {f.snippet.length > 200 ? `${f.snippet.slice(0,200)}...` : f.snippet}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 文本输入区域 */}
       <div className="px-4 pt-4 pb-2">
         <textarea
@@ -152,6 +221,15 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
             transition: "height 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         />
+        {/* 隐藏文件输入 */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".txt,.md,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="hidden"
+          onChange={handleFileInputChange}
+        />
       </div>
 
       {/* 底部操作按钮栏 */}
@@ -162,7 +240,7 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
             type="text"
             size="small"
             icon={<PaperClipOutlined />}
-            onClick={onFileUpload}
+            onClick={handleFileButtonClick}
             className="
               flex items-center justify-center w-8 h-8 rounded-lg
               text-gray-500 hover:text-blue-500 hover:bg-[var(--surface-hover)]
@@ -205,7 +283,12 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
           size="small"
           icon={loading ? <LoadingOutlined /> : <SendOutlined />}
           onClick={onSend}
-          disabled={disabled || !value.trim() || loading}
+          disabled={
+            disabled ||
+            loading ||
+            isUploading ||
+            (!value.trim() && (!attachments || attachments.length === 0))
+          }
           loading={loading}
           className="
             flex items-center justify-center h-8 px-4 rounded-lg

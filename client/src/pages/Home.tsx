@@ -3,11 +3,13 @@ import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import MainLayout from "../components/layout/MainLayout";
 import { useChatContext } from "../contexts/ChatContext";
-import { DEFAULT_WELCOME_MESSAGE } from "../types/chat";
+import { DEFAULT_WELCOME_MESSAGE, type Attachment, type AttachmentMeta } from "../types/chat";
 import StopGenerationButton from "../components/ui/StopGenerationButton";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import ChatInputPanel from "../components/ui/ChatInputPanel";
 import type { ChatInputPanelRef } from "../components/ui/ChatInputPanel";
+import DropOverlay from "../components/ui/DropOverlay";
+import { uploadFiles, validateLocalFiles } from "../utils/fileApi";
 
 /**
  * 主页组件
@@ -40,6 +42,19 @@ const Home: React.FC = () => {
   const fallbackScrollTimeoutRef = useRef<number | null>(null);
   // 滚动状态标记：避免同一帧内多次触发滚动
   const isScrollingRef = useRef<boolean>(false);
+
+  // 附件上传与拖拽状态
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({});
+  const [isDragging, setIsDragging] = useState(false);
+
+  // 附件大小格式化（用于消息内附件元信息展示）
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  };
 
   // 从Context获取会话状态和方法
   const {
@@ -254,7 +269,8 @@ const Home: React.FC = () => {
 
   // 发送消息处理函数
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isAILoading) return;
+    const hasText = !!inputValue.trim();
+    if ((!hasText && attachments.length === 0) || isAILoading || isUploading) return;
 
     const userContent = inputValue.trim();
 
@@ -267,9 +283,46 @@ const Home: React.FC = () => {
     setUserHasScrolled(false);
     setIsStickToBottom(true);
 
+    // 构造附件上下文提示
+    const buildAttachmentsPrompt = (files: Attachment[]): string => {
+      if (!files || files.length === 0) return "";
+      const MAX_TOTAL = 50000; // 50k 字符
+      const per = Math.max(1, Math.floor(MAX_TOTAL / files.length));
+      const blocks = files.map((f) => {
+        const text = f.text || "";
+        const content = text.length > per ? text.slice(0, per) : text;
+        return [
+          `--- 文件: ${f.name} (type=${f.ext}, chars=${content.length}) START ---`,
+          content,
+          `--- 文件: ${f.name} END ---`,
+        ].join("\n");
+      });
+      return [
+        "以下为用户上传的文件内容（可能已截断），回答可引用并标注文件名：",
+        ...blocks,
+      ].join("\n\n");
+    };
+
+    const attachmentsPrompt = buildAttachmentsPrompt(attachments);
+    const finalUserContent = attachments.length > 0
+      ? `${attachmentsPrompt}\n\n我的问题：\n${userContent || "(基于以上文件，请给出总结/见解)"}`
+      : userContent;
+    const displayContent = userContent || (attachments.length > 0 ? "（已发送附件）" : "");
+
     try {
-      // 使用Context中的sendMessage方法
-      await sendMessage(userContent);
+      const attachmentsMeta: AttachmentMeta[] = attachments.map((a) => ({
+        id: a.id,
+        name: a.name,
+        size: a.size,
+        mime: a.mime,
+        ext: a.ext,
+        snippet: a.snippet,
+      }));
+      // 用户点击发送后，立即清空输入面板中的待发送附件区
+      setAttachments([]);
+      setProgressMap({});
+
+      await sendMessage(finalUserContent, attachmentsMeta, { displayContent });
     } catch (error) {
       console.error("发送消息失败:", error);
       message.error("发送消息失败，请稍后重试");
@@ -291,10 +344,62 @@ const Home: React.FC = () => {
     }
   };
 
-  // 处理文件上传
-  const handleFileUpload = () => {
-    // TODO: 实现文件上传功能
-    message.info("文件上传功能即将上线");
+  // 处理文件选择/上传
+  const handleAttachFiles = async (files: File[]) => {
+    if (!files || files.length === 0) return;
+
+    if (attachments.length + files.length > 3) {
+      message.error("单次最多 3 个附件");
+      return;
+    }
+
+    const v = validateLocalFiles(files);
+    if (!v.ok) {
+      message.error(v.message || "文件不合法");
+      return;
+    }
+
+    // 先添加临时项以显示解析中
+    const tempItems: Attachment[] = files.map((f) => {
+      const ext = (f.name.split(".").pop() || "").toLowerCase();
+      return {
+        id: `temp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+        name: f.name,
+        size: f.size,
+        mime: f.type || "",
+        ext,
+        text: "",
+        snippet: "",
+      } as Attachment;
+    });
+
+    setAttachments((prev) => [...prev, ...tempItems]);
+    setIsUploading(true);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const tempId = tempItems[i].id;
+      try {
+        const [res] = await uploadFiles([file], (_i, p) => {
+          setProgressMap((pm) => ({ ...pm, [tempId]: p }));
+        });
+        setAttachments((prev) => prev.map((a) => (a.id === tempId ? res : a)));
+      } catch (e: any) {
+        message.error(e?.message || `${file.name} 上传失败`);
+        setAttachments((prev) => prev.filter((a) => a.id !== tempId));
+      }
+    }
+
+    setIsUploading(false);
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+    setProgressMap((pm) => {
+      const n = { ...pm } as any;
+      delete n[id];
+      return n;
+    });
   };
 
   // 处理知识库
@@ -320,12 +425,23 @@ const Home: React.FC = () => {
 
   return (
     <MainLayout>
+      {/* 拖拽覆盖层 */}
+      <DropOverlay visible={isDragging} />
       {/* 主聊天区域 - 全宽滚动容器 + 视觉内容居中 80% */}
       <div className="h-full flex flex-col bg-panel transition-colors">
         {/* 消息滚动容器：全宽，允许在左右 10% 空白区域滚动 */}
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
+          onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+            if (files.length) handleAttachFiles(files as File[]);
+          }}
           className="flex-1 overflow-y-auto"
         >
           {/* 视觉内容区：80% 宽度、居中 */}
@@ -384,8 +500,19 @@ const Home: React.FC = () => {
                 ) : (
                   // 用户消息 - 气泡样式，右对齐
                   <div className="flex justify-end">
-                    <div className="max-w-[70%] bg-blue-500 text-white px-4 py-2 rounded-l-2xl rounded-tr-2xl rounded-br-sm break-words whitespace-pre-wrap">
-                      {message.content}
+                    <div className="max-w-[70%]">
+                      <div className="bg-blue-500 text-white px-4 py-2 rounded-l-2xl rounded-tr-2xl rounded-br-sm break-words whitespace-pre-wrap">
+                        {message.content}
+                      </div>
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {message.attachments.map((att) => (
+                            <div key={att.id} className="p-2 rounded border border-surface bg-panel text-foreground">
+                              <div className="text-xs text-gray-500">{att.name} · {att.ext.toUpperCase()} · {formatSize(att.size)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -419,7 +546,11 @@ const Home: React.FC = () => {
               onKeyDown={handleKeyPress}
               placeholder="输入您的消息..."
               loading={isAILoading}
-              onFileUpload={handleFileUpload}
+              attachments={attachments.map((a) => ({ id: a.id, name: a.name, size: a.size, mime: a.mime, ext: a.ext, snippet: a.snippet }))}
+              isUploading={isUploading}
+              progressMap={progressMap}
+              onAttachFiles={handleAttachFiles}
+              onRemoveAttachment={handleRemoveAttachment}
               onKnowledgeBase={handleKnowledgeBase}
               onWorkflow={handleWorkflow}
             />

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   type ChatSession,
   type Message,
+  type AttachmentMeta,
   STORAGE_KEYS,
   generateId,
   generateMessageId,
@@ -398,12 +399,19 @@ export const useChatSessions = () => {
 
   // 发送消息并获取AI回复（流式）
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (
+      content: string,
+      attachmentsMeta?: AttachmentMeta[],
+      options?: { displayContent?: string }
+    ) => {
       if (!currentSessionId || !content.trim() || isAILoading) return;
+
+      const displayContent = (options?.displayContent ?? content).trim();
 
       addMessage(currentSessionId, {
         role: "user",
-        content: content.trim(),
+        content: displayContent,
+        attachments: attachmentsMeta,
       });
 
       // 如果是会话的第一条用户消息，更新会话标题
@@ -412,8 +420,28 @@ export const useChatSessions = () => {
         session &&
         session.messages.filter((m) => m.role === "user").length === 0;
 
+      // 构造云端保存内容：对用户消息用包装格式保留附件元信息（不保存大段文本）
+      const buildCloudContent = (
+        role: "user" | "assistant",
+        display: string,
+        atts?: AttachmentMeta[]
+      ): string => {
+        if (role !== "user") return display;
+        try {
+          return JSON.stringify({
+            __type: "chatstudio.msg",
+            v: 1,
+            role,
+            display,
+            attachments: Array.isArray(atts) ? atts : [],
+          });
+        } catch {
+          return display;
+        }
+      };
+
       if (isFirstUserMessage) {
-        const newTitle = generateSessionTitle(content);
+        const newTitle = generateSessionTitle(displayContent);
         updateSessionTitle(currentSessionId, newTitle);
 
         // 如果用户已登录，同时保存标题到云端
@@ -422,7 +450,7 @@ export const useChatSessions = () => {
             await chatSync.saveMessage(
               currentSessionId,
               "user",
-              content.trim(),
+              buildCloudContent("user", displayContent, attachmentsMeta),
               newTitle
             );
             console.log("用户消息和标题已保存到云端");
@@ -435,7 +463,11 @@ export const useChatSessions = () => {
         // 不是第一条消息，正常保存
         if (authState.isAuthenticated) {
           try {
-            await chatSync.saveMessage(currentSessionId, "user", content.trim());
+            await chatSync.saveMessage(
+              currentSessionId,
+              "user",
+              buildCloudContent("user", displayContent, attachmentsMeta)
+            );
             console.log("用户消息已保存到云端");
           } catch (error) {
             console.error("保存用户消息到云端失败:", error);

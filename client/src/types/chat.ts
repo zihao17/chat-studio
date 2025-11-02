@@ -19,6 +19,8 @@ export interface Message {
     promptTokens: number;
     completionTokens: number;
   };
+  // 附件（仅用于展示的元信息）
+  attachments?: AttachmentMeta[];
 }
 
 // 会话类型定义
@@ -64,7 +66,11 @@ export interface ChatContextType {
   ) => void;
 
   // AI交互方法
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (
+    content: string,
+    attachmentsMeta?: AttachmentMeta[],
+    options?: { displayContent?: string }
+  ) => Promise<void>;
   // 停止生成方法
   stopGeneration: (sessionId: string) => void;
   // 设置当前模型
@@ -116,3 +122,17 @@ export const generateSessionTitle = (firstUserMessage: string): string => {
     (firstUserMessage.length > 10 ? "..." : "")
   );
 };
+
+// 上传附件类型定义
+export interface Attachment {
+  id: string;
+  name: string;
+  size: number;
+  mime: string;
+  ext: string;
+  text: string;
+  snippet: string;
+}
+
+// 消息中展示的附件精简信息
+export type AttachmentMeta = Pick<Attachment, "id" | "name" | "size" | "mime" | "ext" | "snippet">;

@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import type { ChatSession } from '../types/chat';
+import type { ChatSession, AttachmentMeta } from '../types/chat';
 
 // API 基础配置 - 使用环境变量
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api`;
@@ -86,7 +86,23 @@ export async function syncGuestDataToCloud(sessions: ChatSession[]): Promise<Syn
       title: session.title,
       messages: session.messages.map(message => ({
         role: message.role,
-        content: message.content,
+        content: ((): string => {
+          const atts = (message as any).attachments as AttachmentMeta[] | undefined;
+          if (message.role === 'user' && Array.isArray(atts) && atts.length > 0) {
+            try {
+              return JSON.stringify({
+                __type: 'chatstudio.msg',
+                v: 1,
+                role: message.role,
+                display: message.content,
+                attachments: atts,
+              });
+            } catch {
+              return message.content;
+            }
+          }
+          return message.content;
+        })(),
         timestamp: new Date(message.timestamp).toISOString()
       })),
       createdAt: new Date(session.createdAt).toISOString()
@@ -164,15 +180,34 @@ export function convertCloudSessionToLocal(
   cloudSession: CloudSession, 
   messages: CloudMessage[]
 ): ChatSession {
+  const parseContent = (msg: CloudMessage): { display: string; attachments?: AttachmentMeta[] } => {
+    const raw = msg.content || '';
+    if (msg.role === 'user' && raw && raw.startsWith('{')) {
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && obj.__type === 'chatstudio.msg' && obj.v >= 1) {
+          const display = typeof obj.display === 'string' ? obj.display : raw;
+          const attachments = Array.isArray(obj.attachments) ? (obj.attachments as AttachmentMeta[]) : undefined;
+          return { display, attachments };
+        }
+      } catch {}
+    }
+    return { display: raw };
+  };
+
   return {
     id: cloudSession.session_id,
     title: cloudSession.title,
-    messages: messages.map((msg, index) => ({
-      id: `cloud-msg-${cloudSession.session_id}-${index}`,
-      role: msg.role,
-      content: msg.content,
-      timestamp: new Date(msg.timestamp).getTime()
-    })),
+    messages: messages.map((msg, index) => {
+      const parsed = parseContent(msg);
+      return {
+        id: `cloud-msg-${cloudSession.session_id}-${index}`,
+        role: msg.role,
+        content: parsed.display,
+        attachments: parsed.attachments,
+        timestamp: new Date(msg.timestamp).getTime()
+      };
+    }),
     createdAt: new Date(cloudSession.created_at).getTime(),
     updatedAt: new Date(cloudSession.updated_at).getTime()
   };
