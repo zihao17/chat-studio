@@ -324,11 +324,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
 
           {/* 悬停抽屉菜单：自底向上展开 */}
           <div
-            className={`absolute left-0 right-0 bottom-12 overflow-hidden px-1 ${
+            className={`absolute left-0 right-0 bottom-8 overflow-hidden px-1 ${
               collapsed ? "hidden" : ""
             }`}
           >
-            <div className="max-h-0 opacity-0 translate-y-2 group-hover:max-h-28 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 ease-out"
+            <div className="max-h-0 opacity-0 translate-y-2 transition-all duration-200 ease-out delay-150 group-hover:delay-0 group-hover:max-h-28 group-hover:opacity-100 group-hover:translate-y-0"
             >
               <div className="bg-panel border border-surface rounded-lg shadow-sm py-1">
                 {/* 设置 - 占位 */}
