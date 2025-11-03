@@ -15,6 +15,7 @@ import {
   SlidersOutlined,
 } from "@ant-design/icons";
 import ChatAdvancedSettingsModal from "../ui/ChatAdvancedSettingsModal";
+// 修复：移除误添加的重复 import（memo / PlusOutlined / Button），保留原有导入结构
 
 // 定义按钮类型
 type ButtonType = "new-chat" | "history" | "knowledge" | "workflow";
@@ -26,8 +27,10 @@ const BUTTON_STYLES = {
     "bg-[var(--accent-bg)] border-accent text-[var(--accent-text)] font-bold",
   inactive:
     "bg-[var(--surface)] border-surface text-foreground hover:bg-[var(--surface-hover)]",
+  // 仅为“新对话”按钮设置专属颜色（亮色 #2B7FFF，暗色 #92BDFF），不影响全局 --accent-text
+  // 新对话按钮专属颜色：通过 .btn-new-chat 强制设置文本颜色（亮色 #2B7FFF / 暗色 #92BDFF），避免受 --accent-text 影响
   newChat:
-    "bg-[var(--accent-bg)] border-accent font-bold hover:bg-[var(--accent-bg)] text-[var(--accent-text)]",
+    "btn-new-chat bg-[var(--accent-bg)] border-accent font-bold hover:bg-[var(--accent-bg)]",
 };
 
 // 可复用的侧边栏按钮组件

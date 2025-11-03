@@ -212,6 +212,10 @@
   .border-surface { border-color: var(--surface-border) !important; }
   .border-accent { border-color: var(--accent-border) !important; }
 
+  /* 新对话按钮专属颜色（避免被全局变量覆盖） */
+  .btn-new-chat { color: #2B7FFF !important; }
+  .dark .btn-new-chat { color: #92BDFF !important; }
+
   /* Ant Design 输入在暗色下的边框聚焦颜色（白灰色） */
   .dark .ant-input,
   .dark .ant-input-affix-wrapper,
