@@ -71,17 +71,32 @@
   .markdown-body pre {
     @apply bg-gray-50 text-gray-900 rounded-lg p-4 overflow-x-auto my-4 border
            dark:bg-gray-900 dark:text-gray-100;
-    border-color: var(--surface-border);
+    border-color: var(--surface-border) !important;
+    background-color: #f9fafb !important;
+    color: #111827 !important;
+  }
+
+  .dark .markdown-body pre {
+    background-color: #111827 !important;
+    color: #f9fafb !important;
   }
 
   .markdown-body pre code {
     @apply bg-transparent text-inherit p-0 rounded-none;
+    background: transparent !important;
   }
 
   /* 行内代码样式 */
   .markdown-body code:not(pre code) {
     @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded text-sm font-mono
            dark:bg-gray-800 dark:text-red-300;
+    background-color: #f3f4f6 !important;
+    color: #dc2626 !important;
+  }
+
+  .dark .markdown-body code:not(pre code) {
+    background-color: #1f2937 !important;
+    color: #fca5a5 !important;
   }
 
   /* 表格样式 */
@@ -96,7 +111,23 @@
   }
 
   .markdown-body th {
-    @apply bg-gray-50 font-semibold dark:bg-gray-800;
+    @apply bg-gray-50 font-semibold text-gray-900 dark:bg-gray-800 dark:text-gray-100;
+    background-color: #f9fafb !important;
+    color: #111827 !important;
+  }
+
+  .dark .markdown-body th {
+    background-color: #1f2937 !important;
+    color: #f9fafb !important;
+  }
+
+  .markdown-body td {
+    @apply text-gray-900 dark:text-gray-100;
+    color: #111827 !important;
+  }
+
+  .dark .markdown-body td {
+    color: #f9fafb !important;
   }
 
   /* 列表间距优化 */
@@ -177,6 +208,43 @@
   display: none !important;
 }
 
+/* highlight.js 亮色主题强制覆盖（确保亮色模式下正确显示） */
+.hljs {
+  background: #f6f8fa !important;
+  color: #24292f !important;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal {
+  color: #cf222e !important;
+}
+.hljs-title,
+.hljs-name,
+.hljs-section {
+  color: #8250df !important;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-attribute {
+  color: #0a3069 !important;
+}
+.hljs-variable,
+.hljs-template-variable {
+  color: #953800 !important;
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: #0550ae !important;
+}
+.hljs-addition { color: #116329 !important; }
+.hljs-deletion { color: #82071e !important; }
+.hljs-comment,
+.hljs-quote {
+  color: #656d76 !important;
+  font-style: italic;
+}
+
 /* highlight.js 暗色主题覆盖（与 github.css 搭配） */
 .dark .hljs {
   background: #0d1117 !important;
@@ -185,26 +253,31 @@
 .dark .hljs-keyword,
 .dark .hljs-selector-tag,
 .dark .hljs-literal {
-  color: #ff7b72;
+  color: #ff7b72 !important;
 }
 .dark .hljs-title,
 .dark .hljs-name,
 .dark .hljs-section {
-  color: #d2a8ff;
+  color: #d2a8ff !important;
 }
 .dark .hljs-string,
 .dark .hljs-attr,
 .dark .hljs-attribute {
-  color: #a5d6ff;
+  color: #a5d6ff !important;
 }
 .dark .hljs-variable,
 .dark .hljs-template-variable {
-  color: #ffa657;
+  color: #ffa657 !important;
 }
 .dark .hljs-number,
 .dark .hljs-symbol,
 .dark .hljs-bullet {
-  color: #79c0ff;
+  color: #79c0ff !important;
 }
-.dark .hljs-addition { color: #3fb950; }
-.dark .hljs-deletion { color: #f85149; }
+.dark .hljs-addition { color: #3fb950 !important; }
+.dark .hljs-deletion { color: #f85149 !important; }
+.dark .hljs-comment,
+.dark .hljs-quote {
+  color: #8b949e !important;
+  font-style: italic;
+}
