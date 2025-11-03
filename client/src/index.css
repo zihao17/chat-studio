@@ -51,6 +51,49 @@
   html, body, #root {
     transition: background-color .25s ease, color .25s ease, border-color .25s ease;
   }
+
+  /* 主题切换瞬时禁用过渡，确保同帧统一更新 */
+  html.theme-switching,
+  html.theme-switching body,
+  html.theme-switching #root,
+  html.theme-switching .bg-app,
+  html.theme-switching .bg-panel {
+    transition: none !important;
+  }
+
+  /* 主题切换瞬时禁用过渡 - 扩展到常见过渡类与 Ant Design 组件 */
+  html.theme-switching .transition,
+  html.theme-switching .transition-colors,
+  html.theme-switching .transition-all,
+  html.theme-switching .ant-btn,
+  html.theme-switching .ant-menu,
+  html.theme-switching .ant-menu-item,
+  html.theme-switching .ant-select-dropdown,
+  html.theme-switching .ant-select-selector,
+  html.theme-switching .ant-select-item,
+  html.theme-switching .ant-dropdown,
+  html.theme-switching .ant-dropdown-menu,
+  html.theme-switching .ant-dropdown-menu-item {
+    transition: none !important;
+  }
+  
+  /* 统一滚动条颜色，避免切换主题时出现 UA 级别颜色闪烁 */
+  :root {
+    --scrollbar-thumb: #c6c6c6; /* light: thumb */
+    --scrollbar-track: #e5e7eb; /* light: track */
+  }
+  .dark {
+    --scrollbar-thumb: #4b5563; /* dark: thumb */
+    --scrollbar-track: #1f2937; /* dark: track */
+  }
+  
+  /* Firefox 滚动条配色（不设置宽度，避免影响已有隐藏样式）*/
+  * {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  /* WebKit 滚动条配色（仅设置颜色，保留圆角与隐藏策略）*/
+  *::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); }
+  *::-webkit-scrollbar-track { background-color: var(--scrollbar-track); }
 }
 
 /* 修复 Ant Design App 组件导致的字体大小变化 */

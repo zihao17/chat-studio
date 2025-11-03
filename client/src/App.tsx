@@ -9,7 +9,8 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 const InnerApp: React.FC = () => {
   const { isDark } = useTheme();
   return (
-    <ConfigProvider locale={zhCN} theme={{ algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm }}>
+    <ConfigProvider locale={zhCN} theme={{ algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm, cssVar: true }}>
+      {/* 启用 antd CSS 变量，提升主题切换的一致性与性能 */}
       <AntdApp>
         <AuthProvider>
           <ChatProvider>
