@@ -183,10 +183,18 @@
     @apply my-1;
   }
 
-  /* 引用块样式 */
+  /* 引用块样式（修复：亮色模式下误用暗色样式） */
   .markdown-body blockquote {
-    @apply border-l-4 pl-4 py-2 my-4 bg-blue-50 italic text-gray-700 dark:bg-blue-900/30 dark:text-gray-300;
-    border-color: var(--accent-border);
+    @apply border-l-4 pl-4 py-3 my-4 italic;
+    /* 统一使用主题变量，强制覆盖，避免浏览器缓存导致的样式错乱 */
+    background-color: var(--accent-bg) !important;
+    color: #374151 !important; /* gray-700 */
+    border-left-color: var(--accent-border) !important;
+  }
+
+  .dark .markdown-body blockquote {
+    /* 保持与暗色主题一致的对比度 */
+    color: #d1d5db !important; /* gray-300 */
   }
 
   /* 分割线样式 */
