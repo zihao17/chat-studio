@@ -13,8 +13,10 @@ import {
   UserOutlined,
   SettingOutlined,
   SlidersOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import ChatAdvancedSettingsModal from "../ui/ChatAdvancedSettingsModal";
+import AboutModal from "../ui/AboutModal";
 // 修复：移除误添加的重复 import（memo / PlusOutlined / Button），保留原有导入结构
 
 // 定义按钮类型
@@ -131,6 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
   } = useChatContext();
   const { state: authState } = useAuth();
   const [advModalOpen, setAdvModalOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // 处理按钮点击
   const handleButtonClick = (buttonType: ButtonType) => {
@@ -362,6 +365,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
                   <SlidersOutlined />
                   <span className="text-sm">聊天高级设置</span>
                 </button>
+                {/* 关于 */}
+                <button
+                  onClick={() => setAboutOpen(true)}
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--surface-hover)] dark:text-gray-200 cursor-pointer"
+                >
+                  <InfoCircleOutlined />
+                  <span className="text-sm">关于</span>
+                </button>
               </div>
             </div>
           </div>
@@ -373,6 +384,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
         open={advModalOpen}
         onClose={() => setAdvModalOpen(false)}
       />
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   );
 };

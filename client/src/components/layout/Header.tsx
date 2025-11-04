@@ -12,6 +12,7 @@ import { useChatContext } from "../../contexts/ChatContext";
 import AuthModal from "../auth/AuthModal";
 import ModelSelector from "../ui/ModelSelector";
 import ThemeToggle from "../ui/ThemeToggle";
+import AboutButton from "../ui/AboutButton";
 
 interface HeaderProps {
   collapsed: boolean;
@@ -95,6 +96,8 @@ const Header: React.FC<HeaderProps> = ({ collapsed, onToggleSidebar }) => {
 
           {/* 右侧用户区域 */}
           <div className="flex items-center space-x-3">
+            {/* 关于按钮（位于主题切换左侧） */}
+            <AboutButton />
             {/* 主题切换 */}
             <ThemeToggle />
             {/* 时间显示 */}
