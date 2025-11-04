@@ -4,11 +4,14 @@ FROM node:18-alpine
 # 设置工作目录
 WORKDIR /app
 
-# 复制 package.json 和 package-lock.json（如果存在）
-COPY package*.json ./
+# 复制 package.json、pnpm-lock.yaml 和 pnpm-workspace.yaml（用于严格依赖与构建行为控制）
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 启用 Corepack 并激活与锁文件兼容的 pnpm 版本（最佳实践）
+RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
+
+# 安装生产依赖，严格遵循锁文件，避免漂移
+RUN pnpm install --frozen-lockfile --prod
 
 # 复制应用源代码
 COPY . .
