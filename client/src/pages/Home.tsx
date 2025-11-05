@@ -450,8 +450,6 @@ const Home: React.FC = () => {
 
   return (
     <MainLayout>
-      {/* 拖拽覆盖层 */}
-      <DropOverlay visible={isDragging} />
       {/* 主聊天区域 - 全宽滚动容器 + 视觉内容居中 80% */}
       <div className="h-full flex flex-col bg-panel transition-colors">
         {/* 消息滚动容器：全宽，允许在左右 10% 空白区域滚动 */}
@@ -488,8 +486,10 @@ const Home: React.FC = () => {
             setIsDragging(false);
             if (files.length) handleAttachFiles(files as File[]);
           }}
-          className="flex-1 overflow-y-auto"
+          className="relative flex-1 overflow-y-auto"
         >
+          {/* 拖拽覆盖层（作用于聊天滚动容器区域） */}
+          <DropOverlay visible={isDragging} />
           {/* 视觉内容区：80% 宽度、居中 */}
           <div className="w-[80%] mx-auto p-4 space-y-4">
             {/* 欢迎消息 - 仅在没有消息时显示 */}
