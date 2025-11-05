@@ -373,8 +373,8 @@ const Home: React.FC = () => {
   const handleAttachFiles = async (files: File[]) => {
     if (!files || files.length === 0) return;
 
-    if (attachments.length + files.length > 3) {
-      message.error("单次最多 3 个附件");
+    if (attachments.length + files.length > 10) {
+      message.error("单次最多 10 个附件");
       return;
     }
 
@@ -552,11 +552,24 @@ const Home: React.FC = () => {
                       </div>
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="mt-2 space-y-2">
-                          {message.attachments.map((att) => (
-                            <div key={att.id} className="p-2 rounded border border-surface bg-panel text-foreground">
-                              <div className="text-xs text-gray-500">{att.name} · {att.ext.toUpperCase()} · {formatSize(att.size)}</div>
-                            </div>
-                          ))}
+                          {message.attachments.map((att) => {
+                            const extLower = (att.ext || '').toLowerCase();
+                            const iconSrc = (() => {
+                              if (extLower === 'docx') return '/icons/word-icon.svg';
+                              if (extLower === 'md' || extLower === 'txt') return '/icons/txt-icon.svg';
+                              if (extLower === 'css') return '/icons/css-icon.svg';
+                              if (extLower === 'html') return '/icons/html-icon.svg';
+                              if (extLower === 'js') return '/icons/js-icon.svg';
+                              if (extLower === 'py') return '/icons/py-icon.svg';
+                              return '/icons/txt-icon.svg';
+                            })();
+                            return (
+                              <div key={att.id} className="p-2 rounded border border-surface bg-panel text-foreground flex items-center gap-2">
+                                <img src={iconSrc} alt={extLower} className="w-4 h-4 select-none" />
+                                <div className="text-xs text-gray-500">{att.name} · {att.ext.toUpperCase()} · {formatSize(att.size)}</div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

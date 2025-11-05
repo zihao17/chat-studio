@@ -1,4 +1,4 @@
-// 文件文本提取工具：txt、md、docx
+// 文件文本提取工具：txt、md、docx、css、html、js、py
 const mammoth = require("mammoth");
 
 function sanitizeText(input, maxLen = 200000) {
@@ -15,7 +15,16 @@ function sanitizeText(input, maxLen = 200000) {
 
 async function extractText({ buffer, mime, ext }) {
   const lowerExt = (ext || "").toLowerCase();
-  if (lowerExt === "txt" || lowerExt === "md" || mime === "text/plain") {
+  if (
+    lowerExt === "txt" ||
+    lowerExt === "md" ||
+    lowerExt === "css" ||
+    lowerExt === "html" ||
+    lowerExt === "js" ||
+    lowerExt === "py" ||
+    (mime && (mime === "text/plain" || mime.startsWith("text/") ||
+      mime === "application/javascript" || mime === "text/javascript"))
+  ) {
     return sanitizeText(Buffer.isBuffer(buffer) ? buffer.toString("utf8") : String(buffer));
   }
   if (
@@ -29,4 +38,3 @@ async function extractText({ buffer, mime, ext }) {
 }
 
 module.exports = { extractText };
-

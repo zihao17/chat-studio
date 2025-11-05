@@ -173,7 +173,12 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
                 return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
               };
               const extLower = (f.ext || '').toLowerCase();
-              const displayType = extLower === 'docx' ? 'word' : 'txt';
+              const displayType = (() => {
+                if (extLower === 'docx') return 'word';
+                if (extLower === 'md') return 'md';
+                if (['css','html','js','py','txt'].includes(extLower)) return extLower;
+                return 'txt';
+              })();
               const charCount = typeof f.charCount === 'number' ? f.charCount : undefined;
               const displayChars = (() => {
                 if (charCount === undefined) return '';
@@ -186,8 +191,11 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
               const progress = typeof (progressMap?.[f.id]) === 'number' ? progressMap[f.id] : undefined;
               const iconSrc = (() => {
                 if (extLower === 'docx') return '/icons/word-icon.svg';
-                // md 也归为 txt 风格
-                if (extLower === 'txt' || extLower === 'md') return '/icons/txt-icon.svg';
+                if (extLower === 'md' || extLower === 'txt') return '/icons/txt-icon.svg';
+                if (extLower === 'css') return '/icons/css-icon.svg';
+                if (extLower === 'html') return '/icons/html-icon.svg';
+                if (extLower === 'js') return '/icons/js-icon.svg';
+                if (extLower === 'py') return '/icons/py-icon.svg';
                 return '/icons/txt-icon.svg';
               })();
 
@@ -257,7 +265,7 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".txt,.md,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept=".txt,.md,.docx,.css,.html,.js,.py,text/plain,text/markdown,text/css,text/html,application/javascript,text/javascript,text/x-python,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           className="hidden"
           onChange={handleFileInputChange}
         />

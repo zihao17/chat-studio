@@ -19,13 +19,13 @@ function decodeFilename(name) {
   }
 }
 
-// 单文件最大 10MB，总数量建议 <=3
+// 单文件最大 10MB，总数量建议 <=10
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 5 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
 });
 
-const ALLOWED_EXTS = new Set(["txt", "md", "docx"]);
+const ALLOWED_EXTS = new Set(["txt", "md", "docx", "css", "html", "js", "py"]);
 
 function genId() {
   return `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -38,10 +38,10 @@ router.post("/upload", upload.array("files"), async (req, res) => {
       return res.status(400).json({ success: false, message: "未收到文件" });
     }
 
-    if (files.length > 3) {
+    if (files.length > 10) {
       return res
         .status(400)
-        .json({ success: false, message: "单次最多上传 3 个文件" });
+        .json({ success: false, message: "单次最多上传 10 个文件" });
     }
 
     const results = [];

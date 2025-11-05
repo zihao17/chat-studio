@@ -17,7 +17,7 @@ const DropOverlay: React.FC<Props> = ({ visible }) => {
           拖放添加文件
         </div>
         <div className="text-gray-500 dark:text-gray-400 text-xs md:text-sm transition-colors">
-          文件数量：最多 3 个，文件类型：txt、word
+          文件数量：最多 10 个，文件类型：txt、md、docx、css、html、js、py
         </div>
       </div>
     </div>

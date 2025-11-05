@@ -50,9 +50,9 @@ export async function uploadFiles(
 }
 
 export function validateLocalFiles(files: File[]): { ok: boolean; message?: string } {
-  const MAX_COUNT = 3;
+  const MAX_COUNT = 10;
   const MAX_SINGLE = 10 * 1024 * 1024;
-  const allowed = ["txt", "md", "docx"];
+  const allowed = ["txt", "md", "docx", "css", "html", "js", "py"];
 
   if (files.length > MAX_COUNT) {
     return { ok: false, message: `单次最多上传 ${MAX_COUNT} 个文件` };
@@ -70,4 +70,3 @@ export function validateLocalFiles(files: File[]): { ok: boolean; message?: stri
   }
   return { ok: true };
 }
-
