@@ -48,6 +48,31 @@ const Home: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [progressMap, setProgressMap] = useState<Record<string, number>>({});
   const [isDragging, setIsDragging] = useState(false);
+  // 拖拽进入/离开计数，避免子元素触发抖动
+  const dragCounterRef = useRef<number>(0);
+  // 全局兜底：防止覆盖层在极端情况下卡住或浏览器打开文件
+  useEffect(() => {
+    const onWindowDragOver = (e: DragEvent) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) {
+        e.preventDefault();
+      }
+    };
+    const onWindowDrop = (e: DragEvent) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) {
+        e.preventDefault();
+      }
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+    };
+    window.addEventListener("dragover", onWindowDragOver);
+    window.addEventListener("drop", onWindowDrop);
+    window.addEventListener("dragend", onWindowDrop);
+    return () => {
+      window.removeEventListener("dragover", onWindowDragOver);
+      window.removeEventListener("drop", onWindowDrop);
+      window.removeEventListener("dragend", onWindowDrop);
+    };
+  }, []);
 
   // 附件大小格式化（用于消息内附件元信息展示）
   const formatSize = (bytes: number) => {
@@ -96,7 +121,7 @@ const Home: React.FC = () => {
         if (messagesContainerRef.current && messagesEndRef.current) {
           const container = messagesContainerRef.current;
           // 强制触发浏览器重排，确保获取最新布局（关键！）
-          container.offsetHeight; // 强制更新布局计算
+          void container.offsetHeight; // 强制更新布局计算
           
           // 改用消息末尾的空div定位，比scrollHeight更可靠
           messagesEndRef.current.scrollIntoView({
@@ -433,13 +458,34 @@ const Home: React.FC = () => {
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
-          onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            // 仅处理文件拖拽
+            if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes("Files")) return;
+            dragCounterRef.current += 1;
+            setIsDragging(true);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes("Files")) return;
+            // 明确设置 dropEffect，提升一致性
+            e.dataTransfer.dropEffect = "copy";
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes("Files")) return;
+            // 只有当所有 dragenter 都离开后才隐藏覆盖层
+            dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+            if (dragCounterRef.current === 0) {
+              setIsDragging(false);
+            }
+          }}
           onDrop={(e) => {
             e.preventDefault();
-            setIsDragging(false);
             const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+            dragCounterRef.current = 0;
+            setIsDragging(false);
             if (files.length) handleAttachFiles(files as File[]);
           }}
           className="flex-1 overflow-y-auto"
