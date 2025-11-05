@@ -6,6 +6,7 @@ import {
   PaperClipOutlined,
   BookOutlined,
   BranchesOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 
 // 定义暴露给父组件的方法接口
@@ -161,40 +162,70 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
         }
       `}
     >
-      {/* 附件区域 */}
+      {/* 附件区域（横向卡片，无预览） */}
       {attachments && attachments.length > 0 && (
         <div className="px-4 pt-4">
-          <div className="flex flex-col gap-2">
-            {attachments.map((f) => (
-              <div key={f.id} className="w-full">
-                {/* 内联简版附件卡片，展示snippet */}
-                <div className="p-3 rounded-lg bg-[var(--surface-hover)] border border-surface">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="text-foreground">
-                      <span className="font-medium mr-2">{f.name}</span>
-                      <span className="text-gray-400 mr-2">{f.ext.toUpperCase()}</span>
-                      {isUploading ? (
-                        <span className="text-blue-500">{typeof (progressMap?.[f.id]) === 'number' ? `${progressMap[f.id]}%` : '解析中'}</span>
-                      ) : null}
+          <div className="flex flex-nowrap items-stretch gap-3 overflow-x-auto">
+            {attachments.map((f) => {
+              const formatBytes = (bytes: number) => {
+                if (bytes < 1024) return `${bytes}B`;
+                if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+                return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+              };
+              const extLower = (f.ext || '').toLowerCase();
+              const displayType = extLower === 'docx' ? 'word' : 'txt';
+              const charCount = typeof f.charCount === 'number' ? f.charCount : undefined;
+              const displayChars = (() => {
+                if (charCount === undefined) return '';
+                if (charCount < 10000) return `${charCount}字`;
+                const w = (charCount / 10000);
+                // 保留一位小数，去尾
+                return `约 ${Math.floor(w * 10) / 10} 万字`;
+              })();
+              const infoLine = [displayType, formatBytes(f.size), displayChars].filter(Boolean).join(' · ');
+              const progress = typeof (progressMap?.[f.id]) === 'number' ? progressMap[f.id] : undefined;
+              const iconSrc = (() => {
+                if (extLower === 'docx') return '/icons/word-icon.svg';
+                // md 也归为 txt 风格
+                if (extLower === 'txt' || extLower === 'md') return '/icons/txt-icon.svg';
+                return '/icons/txt-icon.svg';
+              })();
+
+              return (
+                <div
+                  key={f.id}
+                  className="group relative min-w-[220px] max-w-[280px] p-3 rounded-lg border border-surface bg-attachment flex items-start gap-3 transition-colors"
+                >
+                  {/* 左侧文件类型图标 */}
+                  <img src={iconSrc} alt={displayType} className="w-8 h-8 mt-0 select-none" />
+
+                  {/* 右侧文字区域 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate text-attachment text-sm font-normal">
+                      {f.name}
                     </div>
-                    {onRemoveAttachment && (
-                      <button
-                        className="text-gray-400 hover:text-red-500 transition"
-                        onClick={() => onRemoveAttachment(f.id)}
-                        title="移除附件"
-                      >
-                        移除
-                      </button>
-                    )}
+                    <div className="mt-1 text-[12px] text-attachment-meta">
+                      {infoLine}
+                      {isUploading && progress !== undefined && (
+                        <span className="ml-2 text-attachment-progress">{progress}%</span>
+                      )}
+                    </div>
                   </div>
-                  {f.snippet && (
-                    <div className="mt-2 text-sm text-foreground whitespace-pre-wrap break-words">
-                      {f.snippet.length > 200 ? `${f.snippet.slice(0,200)}...` : f.snippet}
-                    </div>
+
+                  {/* 右上角 hover 显示的关闭按钮 */}
+                  {onRemoveAttachment && (
+                    <button
+                      aria-label="移除附件"
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 w-5 h-5 flex items-center justify-center rounded"
+                      onClick={() => onRemoveAttachment(f.id)}
+                      title="移除"
+                    >
+                      <CloseOutlined style={{ fontSize: 12 }} />
+                    </button>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

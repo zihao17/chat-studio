@@ -27,6 +27,11 @@
   --accent-border: #bfdbfe; /* blue-200 */
   --accent-text: #2563eb; /* blue-600 */
   --focus-border: #d1d5db; /* gray-300 */
+  /* 附件卡片主题变量 */
+  --attachment-card-bg: #f3f4f6; /* gray-100 */
+  --attachment-text: var(--color-foreground);
+  --attachment-meta: #6b7280; /* gray-500 */
+  --attachment-progress: #2563eb; /* blue-600 */
 }
 .dark {
   --app-bg: #0b0f19;   /* 近 gray-950 */
@@ -38,6 +43,11 @@
   --accent-border: rgba(59, 130, 246, 0.5); /* blue-500/50 */
   --accent-text: #e5e7eb; /* off-white for accents */
   --focus-border: #e5e7eb; /* off-white */
+  /* 附件卡片主题变量（暗色） */
+  --attachment-card-bg: #1f2937; /* gray-800 */
+  --attachment-text: var(--color-foreground);
+  --attachment-meta: #9ca3af; /* gray-400 */
+  --attachment-progress: #60a5fa; /* blue-400 */
 }
 
 /* Ant Design 样式重置 */
@@ -211,6 +221,11 @@
   .bg-panel { background-color: var(--panel-bg) !important; }
   .border-surface { border-color: var(--surface-border) !important; }
   .border-accent { border-color: var(--accent-border) !important; }
+  /* 附件小卡片主题工具类（强制覆盖，避免优先级/缓存错配） */
+  .bg-attachment { background-color: var(--attachment-card-bg) !important; }
+  .text-attachment { color: var(--attachment-text) !important; }
+  .text-attachment-meta { color: var(--attachment-meta) !important; }
+  .text-attachment-progress { color: var(--attachment-progress) !important; }
 
   /* 新对话按钮专属颜色（避免被全局变量覆盖） */
   .btn-new-chat { color: #2B7FFF !important; }

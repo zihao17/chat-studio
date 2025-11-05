@@ -135,4 +135,7 @@ export interface Attachment {
 }
 
 // 消息中展示的附件精简信息
-export type AttachmentMeta = Pick<Attachment, "id" | "name" | "size" | "mime" | "ext" | "snippet">;
+// 增加可选的字符统计，用于输入面板展示“文字数量”
+export type AttachmentMeta = Pick<Attachment, "id" | "name" | "size" | "mime" | "ext" | "snippet"> & {
+  charCount?: number;
+};

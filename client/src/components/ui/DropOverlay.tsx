@@ -13,10 +13,10 @@ const DropOverlay: React.FC<Props> = ({ visible }) => {
                  backdrop-blur-md backdrop-saturate-150"
     >
       <div className="text-center space-y-2">
-        <div className="font-semibold text-black text-lg md:text-xl tracking-wide">
+        <div className="font-semibold text-foreground text-lg md:text-xl tracking-wide transition-colors">
           拖放添加文件
         </div>
-        <div className="text-gray-500 text-xs md:text-sm">
+        <div className="text-gray-500 dark:text-gray-400 text-xs md:text-sm transition-colors">
           文件数量：最多 3 个，文件类型：txt、word
         </div>
       </div>

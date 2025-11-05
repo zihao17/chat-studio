@@ -592,7 +592,7 @@ const Home: React.FC = () => {
               onKeyDown={handleKeyPress}
               placeholder="输入您的消息..."
               loading={isAILoading}
-              attachments={attachments.map((a) => ({ id: a.id, name: a.name, size: a.size, mime: a.mime, ext: a.ext, snippet: a.snippet }))}
+              attachments={attachments.map((a) => ({ id: a.id, name: a.name, size: a.size, mime: a.mime, ext: a.ext, snippet: a.snippet, charCount: typeof a.text === 'string' ? a.text.length : undefined }))}
               isUploading={isUploading}
               progressMap={progressMap}
               onAttachFiles={handleAttachFiles}

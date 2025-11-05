@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg height="800px" width="800px" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 viewBox="0 0 318.188 318.188" xml:space="preserve">
+<g>
+	<polygon style="fill:#E4E4E4;" points="227.321,7.5 40.342,7.5 40.342,310.688 277.846,310.688 277.846,58.025 	"/>
+	<polygon style="fill:#004A94;" points="235.14,32.763 40.342,32.763 40.342,7.5 227.321,7.5 	"/>
+	<g>
+		<!-- 中央图标改为蓝色加粗 'W'，保持原色 #004A94 -->
+		<text x="159.094" y="135" text-anchor="middle" dominant-baseline="middle" style="fill:#004A94; font-family: 'Segoe UI', Arial, sans-serif; font-size: 96px; font-weight: 700;">W</text>
+	</g>
+	<polygon style="fill:#D1D3D3;" points="227.321,58.025 277.846,58.025 227.321,7.5 	"/>
+	<g>
+		<!-- 保留文件外形路径，移除原 'CSS' 子路径 -->
+		<path style="fill:#333E48;" d="M283.149,52.722L232.625,2.197C231.218,0.79,229.311,0,227.321,0H40.342c-4.142,0-7.5,3.358-7.5,7.5
+		v303.188c0,4.142,3.358,7.5,7.5,7.5h237.504c4.143,0,7.5-3.358,7.5-7.5V58.025C285.346,56.036,284.556,54.129,283.149,52.722z
+		 M234.821,25.606l24.918,24.919h-24.918L234.821,25.606L234.821,25.606z M47.842,15h171.979v10.263H47.842V15z M270.346,303.188
+		H47.842V40.263h171.979v17.763c0,4.142,3.357,7.5,7.5,7.5h43.024v237.662H270.346z"/>
+		<!-- 新增底部标签文字为 'Word'，保持原色 #333E48 -->
+		<!-- 进一步放大底部标签字号，保持加粗与居中；上移位置以优化底部留白 -->
+		<text x="159.094" y="282" text-anchor="middle" style="fill:#333E48; font-family: 'Segoe UI', Arial, sans-serif; font-size: 60px; font-weight: 800; letter-spacing: 0.5px;">Word</text>
+	</g>
+</g>
+</svg>
