@@ -212,6 +212,25 @@
     @apply my-6 border-t;
     border-top-color: var(--surface-border);
   }
+
+  /* 代码块语言角标与复制按钮（强制覆盖，参考 step40 策略） */
+  .markdown-lang-badge {
+    background-color: #e5e7eb !important; /* gray-200 */
+    color: #374151 !important;            /* gray-700 */
+  }
+  .dark .markdown-lang-badge {
+    background-color: #374151 !important; /* gray-700 */
+    color: #d1d5db !important;            /* gray-300 */
+  }
+
+  .markdown-copy-btn {
+    background-color: var(--panel-bg) !important;
+    border-color: var(--surface-border) !important;
+    color: inherit !important;
+  }
+  .markdown-copy-btn:hover {
+    background-color: var(--surface-hover) !important;
+  }
 }
 
 /* 自定义工具类 */

@@ -3,7 +3,9 @@
  * 集成react-markdown、remark-gfm和rehype-highlight
  * 支持流式渲染、代码高亮和GFM语法
  */
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { CopyOutlined } from '@ant-design/icons';
+import { Tooltip } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -97,6 +99,85 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           }]
         ]}
         components={{
+          // 代码块：包裹 pre，提供复制按钮
+          pre: ({ children, ...props }) => {
+            const preRef = useRef<HTMLPreElement>(null);
+            const [copied, setCopied] = useState(false);
+            const [tooltipOpen, setTooltipOpen] = useState(false);
+
+            const handleCopy = async () => {
+              try {
+                const target = preRef.current;
+                const text = target?.textContent ?? '';
+                if (!text) return;
+                if (navigator.clipboard?.writeText) {
+                  await navigator.clipboard.writeText(text);
+                } else {
+                  const textarea = document.createElement('textarea');
+                  textarea.value = text;
+                  textarea.style.position = 'fixed';
+                  textarea.style.opacity = '0';
+                  document.body.appendChild(textarea);
+                  textarea.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(textarea);
+                }
+                setCopied(true);
+                // 显示“已复制”提示一段时间
+                setTooltipOpen(true);
+                window.setTimeout(() => {
+                  setCopied(false);
+                  setTooltipOpen(false);
+                }, 1500);
+              } catch (e) {
+                console.error('复制代码失败', e);
+              }
+            };
+
+            // 从子节点 code 的 className 中提取语言（如 language-ts）
+            let lang = '';
+            try {
+              const firstChild: any = Array.isArray(children) ? children[0] : children;
+              const cls = firstChild?.props?.className as string | undefined;
+              if (cls && /language-/.test(cls)) {
+                lang = cls.split(' ').find((c: string) => c.startsWith('language-'))?.replace('language-', '') || '';
+              }
+            } catch {}
+
+            return (
+              <div className="relative group">
+                <pre ref={preRef} {...(props as React.ComponentPropsWithoutRef<'pre'>)}>
+                  {children}
+                </pre>
+                {/* 语言角标（可选）：使用强制覆盖样式，避免亮色下误用暗色 */}
+                {lang && (
+                  <span
+                    className="markdown-lang-badge absolute left-2 top-2 z-10 text-[10px] px-1.5 py-0.5 rounded select-none"
+                  >
+                    {lang}
+                  </span>
+                )}
+                {/* 复制按钮：图标化 + Tooltip */}
+                <div className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Tooltip
+                    title={copied ? '已复制' : '复制'}
+                    placement="top"
+                    open={tooltipOpen}
+                    onOpenChange={setTooltipOpen}
+                  >
+                    <button
+                      type="button"
+                      aria-label="复制代码"
+                      onClick={handleCopy}
+                      className="markdown-copy-btn w-7 h-7 flex items-center justify-center rounded border shadow-sm"
+                    >
+                      <CopyOutlined className={copied ? 'text-green-500' : ''} />
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
+            );
+          },
           // 表格组件
           table: Table,
           thead: TableHead,
