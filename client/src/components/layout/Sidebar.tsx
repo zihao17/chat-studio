@@ -17,6 +17,7 @@ import {
 } from "@ant-design/icons";
 import ChatAdvancedSettingsModal from "../ui/ChatAdvancedSettingsModal";
 import AboutModal from "../ui/AboutModal";
+import KnowledgePanel from "../ui/KnowledgePanel";
 // 修复：移除误添加的重复 import（memo / PlusOutlined / Button），保留原有导入结构
 
 // 定义按钮类型
@@ -206,14 +207,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
         );
 
       case "knowledge":
-        // 知识库占位内容
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-center max-lg:hidden">
-            <BookOutlined className="text-4xl text-gray-300 mb-4" />
-            <div className="text-gray-500 text-sm">知识库开发中...</div>
-            <div className="text-gray-400 text-xs mt-2">敬请期待更多功能</div>
-          </div>
-        );
+        return <KnowledgePanel />;
 
       case "workflow":
         // 工作流占位内容
@@ -306,7 +300,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
       {collapsed || !isExpandedReady ? (
         <div className="flex-1 w-full invisible" />
       ) : (
-        <div className="flex-1 overflow-y-auto border-t border-surface w-full">
+        <div className={`flex-1 overflow-y-auto border-t border-surface w-full ${activeButton === "knowledge" ? "no-scrollbar" : ""}`}>
           {renderContentArea()}
         </div>
       )}

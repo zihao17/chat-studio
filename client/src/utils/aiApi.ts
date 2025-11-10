@@ -59,6 +59,9 @@ export interface ChatRequestOptions {
   max_tokens?: number;
   abortController?: AbortController;
   user_system_prompt?: string;
+  kb_enabled?: boolean;
+  kb_collection_id?: number;
+  kb_top_k?: number;
 }
 
 export async function callAIChatStream(
@@ -92,6 +95,9 @@ export async function callAIChatStream(
         max_tokens: options?.max_tokens ?? 10000, // 增加 max_tokens 以支持更长的回复
         top_p: options?.top_p ?? 0.9, // 核采样参数
         user_system_prompt: options?.user_system_prompt,
+        kb_enabled: options?.kb_enabled ?? false,
+        kb_collection_id: options?.kb_collection_id,
+        kb_top_k: options?.kb_top_k ?? 6,
       }),
       signal: options?.abortController?.signal, // 添加中断信号
     });

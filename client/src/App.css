@@ -1,1 +1,18 @@
 /* 空白样式文件 */
+/* 隐藏滚动条但保留可滚动能力 */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0px;  /* Chrome, Safari, Opera */
+  height: 0px;
+  background: transparent;
+}
+.no-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: none;
+}
+.no-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}

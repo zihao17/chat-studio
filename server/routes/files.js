@@ -9,13 +9,25 @@ const { extractText } = require("../utils/fileParser");
 
 const router = express.Router();
 
+/**
+ * 安全解码上传的文件名，防止中文乱码。
+ * 仅在“看起来像乱码”或转换后不像 CJK 文本时才进行 latin1->utf8 转换，避免误改本就正常的名字。
+ * @param {string} name 原始文件名
+ * @returns {string} 解析后的文件名
+ */
 function decodeFilename(name) {
+  const s = name || "unnamed";
   try {
-    // 处理部分浏览器/代理以 latin1 传输文件名导致的乱码问题
-    const decoded = Buffer.from(name || "", "latin1").toString("utf8");
-    return decoded || name || "unnamed";
+    const looksMojibake = /Ã|Â|â|€|¢|„|™|œ|�/.test(s);
+    const originalHasCJK = /[\u4E00-\u9FFF]/.test(s);
+    const converted = Buffer.from(s || "", "latin1").toString("utf8");
+    const convertedHasCJK = /[\u4E00-\u9FFF]/.test(converted);
+    if (looksMojibake || (convertedHasCJK && !originalHasCJK)) {
+      return converted || s;
+    }
+    return s;
   } catch {
-    return name || "unnamed";
+    return s;
   }
 }
 

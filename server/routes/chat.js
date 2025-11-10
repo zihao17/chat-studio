@@ -8,6 +8,7 @@ const OpenAI = require("openai");
 const https = require("https");
 const http = require("http");
 const { getModelscopeApiKey } = require("../utils/keyManager");
+const { getDatabase } = require("../db/database");
 const router = express.Router();
 
 /**
@@ -198,6 +199,10 @@ router.post("/chat", validateChatRequest, async (req, res) => {
     max_tokens = 10000,
     top_p = 0.9, // 添加 top_p 参数支持，默认值 0.9
     user_system_prompt,
+    // RAG 相关参数
+    kb_enabled = false,
+    kb_collection_id,
+    kb_top_k = 6,
   } = req.body;
 
   // 记录开始时间
@@ -259,11 +264,72 @@ router.post("/chat", validateChatRequest, async (req, res) => {
         let totalTokens = 0;
         let promptTokens = 0;
         let completionTokens = 0;
+        let citations = [];
+
+        // 若启用 RAG：执行混检+重排，拼装上下文
+        let messagesFinal = messagesWithSystem;
+        if (kb_enabled && kb_collection_id) {
+          try {
+            const { hybridSearch } = require("../utils/hybridSearch");
+            const { rerank } = require("../utils/rerank");
+            const collectionId = parseInt(kb_collection_id, 10);
+            const userQuery = nonSystemMessages[nonSystemMessages.length - 1]?.content || "";
+            const t0 = Date.now();
+            const hybrid = await hybridSearch({ collectionId, query: userQuery, topK: 50 });
+            const docs = hybrid.map((h) => h.content);
+            const reranked = await rerank(userQuery, docs, Math.min(10, docs.length));
+            const keep = reranked.slice(0, Math.min(kb_top_k, 6));
+            // 取文档标题
+            const docIds = Array.from(new Set(keep.map((r) => hybrid[r.index].doc_id)));
+            let titleMap = new Map();
+            if (docIds.length) {
+              const db = getDatabase();
+              const placeholders = docIds.map(() => "?").join(",");
+              const rows = await new Promise((resolve, reject) => {
+                db.all(
+                  `SELECT id, filename FROM kb_documents WHERE id IN (${placeholders})`,
+                  docIds,
+                  (err, rs) => (err ? reject(err) : resolve(rs || []))
+                );
+              });
+              // 尝试修复历史乱码文件名
+              const fixGarbled = (t) => {
+                try {
+                  const repaired = Buffer.from(String(t), 'latin1').toString('utf8');
+                  const nonAsciiOrig = (String(t).match(/[^\x00-\x7F]/g) || []).length;
+                  const nonAsciiNew = (repaired.match(/[^\x00-\x7F]/g) || []).length;
+                  return nonAsciiNew > nonAsciiOrig ? repaired : t;
+                } catch { return t; }
+              };
+              titleMap = new Map(rows.map((r) => [r.id, fixGarbled(r.filename)]));
+            }
+            citations = keep.map((r) => {
+              const h = hybrid[r.index];
+              const title = titleMap.get(h.doc_id) || `doc-${h.doc_id}`;
+              const preview = (h.content || "").slice(0, 120);
+              return { title, preview, docId: h.doc_id, chunkId: h.chunk_id, score: r.score, idx: h.idx };
+            });
+            const contextBlocks = keep.map((r, i) => {
+              const h = hybrid[r.index];
+              const title = citations[i]?.title || `doc-${h.doc_id}`;
+              return `【来源${i + 1}｜${title}｜#${h.idx}】\n${h.content}`;
+            });
+            const ragPrefix = `你可以参考以下已检索到的资料（如无关请忽略）：\n\n${contextBlocks.join("\n\n")}`;
+            messagesFinal = [
+              { role: "system", content: finalSystemPrompt },
+              { role: "system", content: ragPrefix },
+              ...nonSystemMessages,
+            ];
+            console.log(`RAG 检索用时: ${(Date.now() - t0)}ms, 命中: ${keep.length}`);
+          } catch (e) {
+            console.warn("RAG 流程失败，回退无检索:", e?.message || e);
+          }
+        }
 
         const completion = await openai.chat.completions.create(
           {
             model,
-            messages: messagesWithSystem,
+            messages: messagesFinal,
             stream: true,
             temperature,
             max_tokens,
@@ -305,6 +371,7 @@ router.post("/chat", validateChatRequest, async (req, res) => {
               totalTokens,
               promptTokens,
               completionTokens,
+              citations,
             },
           })}\n\n`
         );

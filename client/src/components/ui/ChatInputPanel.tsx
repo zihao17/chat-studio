@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Button } from "antd";
+import { Button, Select, Switch, Tooltip } from "antd";
+import { useChatContext } from "../../contexts/ChatContext";
 import {
   SendOutlined,
   LoadingOutlined,
@@ -56,6 +57,30 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatCtx = useChatContext();
+  const [collections, setCollections] = useState<{ id: number; name: string }[]>([]);
+  const [loadingKb, setLoadingKb] = useState(false);
+  const { kbEnabled, setKbEnabled, kbCollectionId, setKbCollectionId } = chatCtx;
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoadingKb(true);
+        const mod = await import("../../utils/kbApi");
+        const items = await mod.kbListCollections();
+        if (mounted) setCollections(items);
+      } catch {
+        // ignore
+      } finally {
+        setLoadingKb(false);
+      }
+    };
+    load();
+    const onReload = () => load();
+    window.addEventListener('kb:collections-updated', onReload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 暴露聚焦方法给父组件
   useImperativeHandle(ref, () => ({
@@ -273,7 +298,7 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
 
       {/* 底部操作按钮栏 */}
       <div className="flex items-center justify-between px-4 pb-3 h-10">
-        {/* 左侧工具按钮 */}
+        {/* 左侧工具按钮 + RAG 控件 */}
         <div className="flex items-center gap-2">
           <Button
             type="text"
@@ -288,6 +313,26 @@ const ChatInputPanel = forwardRef<ChatInputPanelRef, ChatInputPanelProps>(({
             "
             title="上传文件"
           />
+          {/* RAG 开关 */}
+          <Tooltip title="启用知识库检索 (RAG)">
+            <div className="flex items-center gap-2 px-2 py-1 rounded-xl border border-surface bg-[var(--surface)] hover:bg-[var(--surface-hover)]">
+              <span className="text-xs text-gray-600 dark:text-gray-300">RAG</span>
+              <Switch size="small" checked={kbEnabled} onChange={(v) => setKbEnabled(v)} />
+            </div>
+          </Tooltip>
+          {/* 知识库选择器 */}
+          <div className={`rounded-xl ${kbEnabled ? 'opacity-100' : 'opacity-60'} transition` }>
+            <Select
+              size="small"
+              style={{ width: 200 }}
+              placeholder={loadingKb ? "加载知识库..." : "选择知识库"}
+              options={collections.map((c) => ({ value: c.id, label: c.name }))}
+              value={kbCollectionId}
+              onChange={(v) => setKbCollectionId(v as number)}
+              disabled={!kbEnabled}
+              allowClear
+            />
+          </div>
           <Button
             type="text"
             size="small"

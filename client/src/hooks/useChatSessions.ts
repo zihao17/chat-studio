@@ -26,6 +26,9 @@ export const useChatSessions = () => {
   const [temperature, setTemperature] = useState<number>(0.7);
   const [topP, setTopP] = useState<number>(0.9);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
+  // RAG：知识库开关与当前集合
+  const [kbEnabled, setKbEnabled] = useState<boolean>(false);
+  const [kbCollectionId, setKbCollectionId] = useState<number | undefined>(undefined);
   // 存储每个会话的AbortController，用于中断流式响应
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // 标记是否已经进行过登录后的数据同步
@@ -576,6 +579,9 @@ export const useChatSessions = () => {
             top_p: topP,
             abortController,
             user_system_prompt: systemPrompt,
+            kb_enabled: kbEnabled,
+            kb_collection_id: kbCollectionId,
+            kb_top_k: 6,
           }
         );
 
@@ -913,5 +919,10 @@ export const useChatSessions = () => {
     setTemperature,
     setTopP,
     setSystemPrompt,
+    // RAG 设置导出
+    kbEnabled,
+    setKbEnabled,
+    kbCollectionId,
+    setKbCollectionId,
   };
 };

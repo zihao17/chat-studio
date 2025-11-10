@@ -24,6 +24,7 @@ const authRoutesPath = "./routes/auth";
 const chatSyncRoutesPath = "./routes/chatSync";
 const configRoutesPath = "./routes/config";
 const filesRoutesPath = "./routes/files";
+const kbRoutesPath = "./routes/kb";
 
 // 检测部署平台
 const isZeabur = process.env.ZEABUR || process.env.ZEABUR_ENVIRONMENT_NAME;
@@ -228,12 +229,14 @@ const { router: authRoutes } = require(authRoutesPath);
 const chatSyncRoutes = require(chatSyncRoutesPath);
 const configRoutes = require(configRoutesPath);
 const filesRoutes = require(filesRoutesPath);
+const kbRoutes = require(kbRoutesPath);
 
 // API 路由
 app.use("/api/auth", authRoutes);
 app.use("/api/chat-sync", chatSyncRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/files", filesRoutes);
+app.use("/api/kb", kbRoutes);
 app.use("/api", chatRoutes);
 
 // 根路径重定向到 API 信息
@@ -252,6 +255,7 @@ app.get("/", (req, res) => {
       config: "/api/config",
       chatSync: "/api/chat-sync",
       files: "/api/files/upload",
+      kb: "/api/kb",
     },
     timestamp: new Date().toISOString(),
   });
@@ -271,6 +275,7 @@ app.get("/api", (req, res) => {
       config: "/api/config",
       chatSync: "/api/chat-sync",
       files: "/api/files/upload",
+      kb: "/api/kb",
     },
     timestamp: new Date().toISOString(),
   });

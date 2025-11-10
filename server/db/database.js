@@ -112,6 +112,89 @@ function initializeTables(db) {
       )
     `;
 
+    // 知识库相关表
+    const createKbCollections = `
+      CREATE TABLE IF NOT EXISTS kb_collections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `;
+
+    const createKbDocuments = `
+      CREATE TABLE IF NOT EXISTS kb_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        collection_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        ext TEXT,
+        mime TEXT,
+        size INTEGER,
+        sha256 TEXT,
+        status TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (collection_id) REFERENCES kb_collections (id) ON DELETE CASCADE
+      )
+    `;
+
+    const createKbChunks = `
+      CREATE TABLE IF NOT EXISTS kb_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        collection_id INTEGER NOT NULL,
+        doc_id INTEGER NOT NULL,
+        idx INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        tokens INTEGER,
+        start_pos INTEGER,
+        end_pos INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (collection_id) REFERENCES kb_collections (id) ON DELETE CASCADE,
+        FOREIGN KEY (doc_id) REFERENCES kb_documents (id) ON DELETE CASCADE
+      )
+    `;
+
+    const createKbEmbeddings = `
+      CREATE TABLE IF NOT EXISTS kb_embeddings (
+        chunk_id INTEGER PRIMARY KEY,
+        collection_id INTEGER NOT NULL,
+        vector BLOB NOT NULL,
+        dim INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (chunk_id) REFERENCES kb_chunks (id) ON DELETE CASCADE,
+        FOREIGN KEY (collection_id) REFERENCES kb_collections (id) ON DELETE CASCADE
+      )
+    `;
+
+    const createKbFts = `
+      CREATE VIRTUAL TABLE IF NOT EXISTS kb_chunks_fts USING fts5(
+        content,
+        chunk_id UNINDEXED,
+        doc_id UNINDEXED,
+        collection_id UNINDEXED,
+        tokenize = 'unicode61'
+      )
+    `;
+
+    // 触发器：保持 FTS 与主表同步
+    const createKbFtsTriggers = [
+      `CREATE TRIGGER IF NOT EXISTS kb_chunks_ai AFTER INSERT ON kb_chunks BEGIN
+          INSERT INTO kb_chunks_fts(rowid, content, chunk_id, doc_id, collection_id)
+          VALUES (new.id, new.content, new.id, new.doc_id, new.collection_id);
+        END;`,
+      `CREATE TRIGGER IF NOT EXISTS kb_chunks_ad AFTER DELETE ON kb_chunks BEGIN
+          DELETE FROM kb_chunks_fts WHERE rowid = old.id;
+        END;`,
+      `CREATE TRIGGER IF NOT EXISTS kb_chunks_au AFTER UPDATE OF content ON kb_chunks BEGIN
+          DELETE FROM kb_chunks_fts WHERE rowid = old.id;
+          INSERT INTO kb_chunks_fts(rowid, content, chunk_id, doc_id, collection_id)
+          VALUES (new.id, new.content, new.id, new.doc_id, new.collection_id);
+        END;`,
+    ];
+
     // 创建索引提升查询性能
     const createIndexes = [
       "CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)",
@@ -121,6 +204,11 @@ function initializeTables(db) {
       "CREATE INDEX IF NOT EXISTS idx_messages_session_id ON chat_messages (session_id)",
       "CREATE INDEX IF NOT EXISTS idx_messages_user_id ON chat_messages (user_id)",
       "CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON chat_messages (timestamp)",
+      "CREATE INDEX IF NOT EXISTS idx_kb_collections_user ON kb_collections (user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_kb_docs_collection ON kb_documents (collection_id)",
+      "CREATE INDEX IF NOT EXISTS idx_kb_chunks_doc ON kb_chunks (doc_id)",
+      "CREATE INDEX IF NOT EXISTS idx_kb_chunks_collection ON kb_chunks (collection_id)",
+      "CREATE INDEX IF NOT EXISTS idx_kb_embeddings_collection ON kb_embeddings (collection_id)"
     ];
 
     // 执行表创建
@@ -149,6 +237,53 @@ function initializeTables(db) {
         console.log("✅ 消息表创建成功");
       });
 
+      // 知识库表
+      db.run(createKbCollections, (err) => {
+        if (err) {
+          console.error("❌ 创建知识库表失败:", err.message);
+          return reject(err);
+        }
+        console.log("✅ 知识库集合表创建成功");
+      });
+
+      db.run(createKbDocuments, (err) => {
+        if (err) {
+          console.error("❌ 创建知识库文档表失败:", err.message);
+          return reject(err);
+        }
+        console.log("✅ 知识库文档表创建成功");
+      });
+
+      db.run(createKbChunks, (err) => {
+        if (err) {
+          console.error("❌ 创建知识库分块表失败:", err.message);
+          return reject(err);
+        }
+        console.log("✅ 知识库分块表创建成功");
+      });
+
+      db.run(createKbEmbeddings, (err) => {
+        if (err) {
+          console.error("❌ 创建知识库向量表失败:", err.message);
+          return reject(err);
+        }
+        console.log("✅ 知识库向量表创建成功");
+      });
+
+      db.run(createKbFts, (err) => {
+        if (err) {
+          console.error("❌ 创建知识库FTS虚表失败:", err.message);
+          return reject(err);
+        }
+        console.log("✅ 知识库FTS虚表创建成功");
+      });
+
+      createKbFtsTriggers.forEach((sql) => {
+        db.run(sql, (err) => {
+          if (err) console.error("⚠️ 创建FTS触发器失败:", err.message);
+        });
+      });
+
       // 创建索引
       createIndexes.forEach((indexSql, index) => {
         db.run(indexSql, (err) => {
@@ -159,6 +294,7 @@ function initializeTables(db) {
       });
 
       console.log("✅ 数据库表结构初始化完成");
+      console.log("📚 知识库表已就绪");
       resolve();
     });
   });

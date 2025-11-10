@@ -536,8 +536,23 @@ const Home: React.FC = () => {
                         />
                         {/* AI回复统计信息 */}
                         {message.stats && (
-                          <div className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-mono">
-                            {message.stats.model} | {message.stats.responseTime} | {message.stats.totalTokens} tokens
+                          <div className="mt-2 space-y-1">
+                            <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                              {message.stats.model} | {message.stats.responseTime} | {message.stats.totalTokens} tokens
+                            </div>
+                            {Array.isArray((message as any).stats?.citations) && (message as any).stats.citations.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {(message as any).stats.citations.map((c: any, i: number) => (
+                                  <span
+                                    key={i}
+                                    className="text-xs px-2 py-1 rounded-full border border-surface bg-[var(--surface)] text-foreground hover:bg-[var(--surface-hover)] cursor-default"
+                                    title={`${c.title || ('doc-'+c.docId)} | #${c.idx}\n${c.preview || ''}`}
+                                  >
+                                    引用 {i + 1} · {(c.title || ('doc-'+c.docId))}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

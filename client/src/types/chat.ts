@@ -18,6 +18,8 @@ export interface Message {
     totalTokens: number;
     promptTokens: number;
     completionTokens: number;
+    // 可选：RAG 引用
+    citations?: Array<{ title?: string; preview?: string; docId: number; chunkId: number; score?: number; idx?: number }>;
   };
   // 附件（仅用于展示的元信息）
   attachments?: AttachmentMeta[];
@@ -86,6 +88,11 @@ export interface ChatContextType {
   setTemperature: (v: number) => void;
   setTopP: (v: number) => void;
   setSystemPrompt: (v: string) => void;
+  // RAG 设置
+  kbEnabled: boolean;
+  setKbEnabled: (v: boolean) => void;
+  kbCollectionId?: number;
+  setKbCollectionId: (id?: number) => void;
 }
 
 // 本地存储键名常量
