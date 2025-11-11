@@ -16,3 +16,15 @@
 .no-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* 统一的黑底白字 Tooltip，用于知识库图标提示 */
+.kb-tooltip .ant-tooltip-inner {
+  background: #000 !important;
+  color: #fff !important;
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.kb-tooltip .ant-tooltip-arrow::before {
+  background: #000 !important;
+}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Input, Upload, Empty, Spin, App as AntdApp, Popconfirm } from "antd";
+import { Button, Input, Upload, Empty, Spin, App as AntdApp, Popconfirm, Tooltip } from "antd";
 import type { UploadProps } from "antd";
 import { kbListCollectionsByGroup, kbCreateCollection, kbUploadAndIngest, kbListDocuments, kbDeleteCollection, kbDeleteDocument, type KbDocument } from "../../utils/kbApi";
 import { useChatContext } from "../../contexts/ChatContext";
@@ -89,6 +89,22 @@ const KnowledgePanel: React.FC = () => {
     }
   };
 
+  // 格式化文件大小（仅显示 KB/MB，向上取整更直观）
+  const formatSize = (bytes?: number) => {
+    if (!bytes || bytes <= 0) return "-";
+    const KB = 1024;
+    const MB = KB * 1024;
+    if (bytes >= MB) return `${(bytes / MB).toFixed(1)} MB`;
+    return `${Math.max(1, Math.ceil(bytes / KB))} KB`;
+  };
+
+  // 统一的黑底白字提示气泡
+  const KbTip: React.FC<{ title: React.ReactNode; children: React.ReactElement }> = ({ title, children }) => (
+    <Tooltip placement="top" overlayClassName="kb-tooltip" title={title} mouseEnterDelay={0.15}>
+      {children}
+    </Tooltip>
+  );
+
   // 重命名与粘贴入库等功能暂时在此面板隐藏（后续可能在其他位置提供）
 
   const deleteCollection = async (cId: number) => {
@@ -150,7 +166,7 @@ const KnowledgePanel: React.FC = () => {
             shape="round"
             className="btn-kb-ghost"
             icon={<SettingOutlined />}
-            onClick={() => message.info("\u300C管理知识库\u300D即将推出")}
+            onClick={() => window.dispatchEvent(new CustomEvent('kb:open-manager'))}
           >
             管理知识库
           </Button>
@@ -248,14 +264,15 @@ const KnowledgePanel: React.FC = () => {
                         disabled={loading}
                         className="cursor-pointer"
                       >
-                        <span
-                          title="添加文档"
-                          role="button"
-                          aria-label="添加文档"
-                          className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                        >
-                          <PlusCircleOutlined />
-                        </span>
+                        <KbTip title="添加文档">
+                          <span
+                            role="button"
+                            aria-label="添加文档"
+                            className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                          >
+                            <PlusCircleOutlined />
+                          </span>
+                        </KbTip>
                       </Upload>
                       {/* 暂时隐藏：粘贴文本入库、编辑名称 */}
                       <Popconfirm
@@ -267,25 +284,27 @@ const KnowledgePanel: React.FC = () => {
                         placement="topRight"
                         onConfirm={() => deleteCollection(c.id)}
                       >
-                        <span
-                          title="删除知识库"
-                          role="button"
-                          aria-label="删除知识库"
-                          className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle cursor-pointer text-gray-500 hover:text-red-500 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); }}
-                        >
-                          <DeleteOutlined />
-                        </span>
+                        <KbTip title="删除知识库">
+                          <span
+                            role="button"
+                            aria-label="删除知识库"
+                            className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle cursor-pointer text-gray-500 hover:text-red-500 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); }}
+                          >
+                            <DeleteOutlined />
+                          </span>
+                        </KbTip>
                       </Popconfirm>
-                      <span
-                        title="设为当前知识库"
-                        role="button"
-                        aria-label="设为当前知识库"
-                        className={`inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle ${isActive? 'text-green-600 dark:text-green-400' : 'text-gray-500 hover:text-green-600 dark:hover:text-green-400'} transition-colors`}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setKbCollectionId?.(c.id); }}
-                      >
-                        <CheckCircleOutlined />
-                      </span>
+                      <KbTip title={isActive ? "当前知识库" : "设为当前知识库"}>
+                        <span
+                          role="button"
+                          aria-label="设为当前知识库"
+                          className={`inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle ${isActive? 'text-green-600 dark:text-green-400' : 'text-gray-500 hover:text-green-600 dark:hover:text-green-400'} transition-colors`}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setKbCollectionId?.(c.id); }}
+                        >
+                          <CheckCircleOutlined />
+                        </span>
+                      </KbTip>
                     </div>
                   </div>
                   {/* Body: docs list */}
@@ -298,11 +317,18 @@ const KnowledgePanel: React.FC = () => {
                       ) : (
                         <div className="space-y-1 no-scrollbar">
                           {docs.map((d) => (
-                            <div key={d.docId} className="flex items-center justify-between text-xs text-foreground border-b border-surface py-1">
-                              <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              key={d.docId}
+                              className="grid grid-cols-[1fr_88px_56px] items-center text-xs text-foreground border-b border-surface py-1 gap-2"
+                            >
+                              {/* 文件名：左侧占满，超出省略 */}
+                              <div className="min-w-0">
                                 <span className="truncate" title={d.filename}>{d.filename}</span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              {/* 文件大小：固定宽度，右对齐，等宽数字 */}
+                              <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">{formatSize(d.size)}</div>
+                              {/* 操作图标：固定宽度靠右 */}
+                              <div className="flex items-center justify-end whitespace-nowrap">
                                 <Popconfirm
                                   title="删除文件"
                                   description="确认删除该文件？"
@@ -312,13 +338,14 @@ const KnowledgePanel: React.FC = () => {
                                   placement="right"
                                   onConfirm={() => handleDeleteDoc(d.docId, c.id)}
                                 >
-                                  <span
-                                    title="删除文件"
-                                    className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-400 hover:text-red-500 cursor-pointer"
-                                    onClick={(e) => { e.stopPropagation(); }}
-                                  >
-                                    <DeleteOutlined />
-                                  </span>
+                                  <KbTip title="删除文件">
+                                    <span
+                                      className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-400 hover:text-red-500 cursor-pointer"
+                                      onClick={(e) => { e.stopPropagation(); }}
+                                    >
+                                      <DeleteOutlined />
+                                    </span>
+                                  </KbTip>
                                 </Popconfirm>
                               </div>
                             </div>

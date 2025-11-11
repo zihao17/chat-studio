@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import MainLayout from "../components/layout/MainLayout";
+import KbManager from "./KbManager";
 import { useChatContext } from "../contexts/ChatContext";
 import { DEFAULT_WELCOME_MESSAGE, type Attachment, type AttachmentMeta } from "../types/chat";
 import StopGenerationButton from "../components/ui/StopGenerationButton";
@@ -38,6 +39,8 @@ const Home: React.FC = () => {
   const scrollTimeoutRef = useRef<number | null>(null);
   // 流式输出状态：标记是否正在接收流式数据
   const [isStreaming, setIsStreaming] = useState(false);
+  // 是否展示知识库管理
+  const [showKbManager, setShowKbManager] = useState(false);
   // 保底滚动定时器：极端情况下的兜底机制
   const fallbackScrollTimeoutRef = useRef<number | null>(null);
   // 滚动状态标记：避免同一帧内多次触发滚动
@@ -71,6 +74,18 @@ const Home: React.FC = () => {
       window.removeEventListener("dragover", onWindowDragOver);
       window.removeEventListener("drop", onWindowDrop);
       window.removeEventListener("dragend", onWindowDrop);
+    };
+  }, []);
+
+  // 监听打开/关闭知识库管理事件
+  useEffect(() => {
+    const open = () => setShowKbManager(true);
+    const close = () => setShowKbManager(false);
+    window.addEventListener('kb:open-manager', open);
+    window.addEventListener('kb:close-manager', close);
+    return () => {
+      window.removeEventListener('kb:open-manager', open);
+      window.removeEventListener('kb:close-manager', close);
     };
   }, []);
 
@@ -429,8 +444,7 @@ const Home: React.FC = () => {
 
   // 处理知识库
   const handleKnowledgeBase = () => {
-    // TODO: 实现知识库功能
-    message.info("知识库功能即将上线");
+    window.dispatchEvent(new CustomEvent('kb:open-manager'));
   };
 
   // 处理工作流
@@ -450,7 +464,8 @@ const Home: React.FC = () => {
 
   return (
     <MainLayout>
-      {/* 主聊天区域 - 全宽滚动容器 + 视觉内容居中 80% */}
+      {/* 主区域：聊天 或 知识库管理 */}
+      {!showKbManager ? (
       <div className="h-full flex flex-col bg-panel transition-colors">
         {/* 消息滚动容器：全宽，允许在左右 10% 空白区域滚动 */}
         <div
@@ -631,6 +646,9 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+      ) : (
+        <KbManager />
+      )}
     </MainLayout>
   );
 };
