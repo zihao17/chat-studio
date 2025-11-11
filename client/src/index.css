@@ -27,6 +27,9 @@
   --accent-border: #bfdbfe; /* blue-200 */
   --accent-text: #2563eb; /* blue-600 */
   --focus-border: #d1d5db; /* gray-300 */
+  /* 用户消息气泡（亮色） */
+  --user-bubble-bg: #3b82f6; /* blue-500 */
+  --user-bubble-text: #ffffff;
   /* 附件卡片主题变量 */
   --attachment-card-bg: #f3f4f6; /* gray-100 */
   --attachment-text: var(--color-foreground);
@@ -43,6 +46,9 @@
   --accent-border: rgba(59, 130, 246, 0.5); /* blue-500/50 */
   --accent-text: #e5e7eb; /* off-white for accents */
   --focus-border: #e5e7eb; /* off-white */
+  /* 用户消息气泡（暗色） */
+  --user-bubble-bg: rgb(20, 32, 66); /* 更深蓝，降低刺眼感 */
+  --user-bubble-text: #ffffff;
   /* 附件卡片主题变量（暗色） */
   --attachment-card-bg: #1f2937; /* gray-800 */
   --attachment-text: var(--color-foreground);
@@ -369,4 +375,105 @@
 .dark .hljs-quote {
   color: #8b949e !important;
   font-style: italic;
+}
+/* 更浅的知识库条目拖拽悬停反馈（亮/暗主题适配） */
+.kb-drop-hover {
+  /* 更亮更干净的浅绿：不增加边框粗细，仅调整颜色与淡底色 */
+  background-color: rgba(34, 197, 94, 0.08) !important; /* green-500 @ 8% */
+  border-color: rgba(110, 231, 183, 0.9) !important;    /* green-300 强化 */
+}
+.dark .kb-drop-hover {
+  /* 暗色下提升明度与透明度，避免灰暗感 */
+  background-color: rgba(34, 197, 94, 0.16) !important; /* green-500 @ 16% */
+  border-color: rgba(167, 243, 208, 0.95) !important;   /* green-200 更亮 */
+}
+/* KB 顶部按钮现代化样式（胶囊、轻阴影、主题适配） */
+.kb-header-actions .ant-btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 9999px !important; /* 胶囊形 */
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.dark .kb-header-actions .ant-btn {
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+.kb-header-actions .btn-kb-primary {
+  background-image: linear-gradient(90deg, #34d399, #10b981) !important; /* emerald 400 -> 500 */
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+}
+.kb-header-actions .btn-kb-primary:hover {
+  filter: brightness(1.05);
+}
+
+.kb-header-actions .btn-kb-ghost {
+  background-color: var(--surface) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--color-foreground) !important;
+}
+.kb-header-actions .btn-kb-ghost:hover {
+  background-color: var(--surface-hover) !important;
+}
+.dark .kb-header-actions .btn-kb-ghost {
+  background-color: #111827 !important; /* gray-900 */
+  border-color: #374151 !important;     /* gray-700 */
+  color: var(--color-foreground) !important;
+}
+.dark .kb-header-actions .btn-kb-ghost:hover {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+/* KB 创建表单：极简黑白风格 */
+.kb-create .kb-input {
+  height: 36px;
+  border-radius: 10px !important; /* 略小圆角，更简约 */
+  background-color: var(--panel-bg) !important;
+  border: 1px solid var(--surface-border) !important;
+  color: var(--color-foreground) !important;
+  padding: 0 14px !important;
+  box-shadow: none;
+  transition: border-color .2s ease, background-color .2s ease, color .2s ease;
+}
+.kb-create .kb-input:hover {
+  border-color: #11182733 !important; /* 过渡更自然 */
+}
+.kb-create .kb-input:focus, .kb-create .kb-input-focused {
+  border-color: #9ca3af !important; /* gray-400 */
+}
+.dark .kb-create .kb-input {
+  background-color: #0f172a !important; /* slate-900 */
+  border-color: #334155 !important;     /* slate-700 */
+  color: #e5e7eb !important;            /* gray-200 */
+  box-shadow: none;
+}
+.dark .kb-create .kb-input:focus, .dark .kb-create .kb-input-focused {
+  border-color: #94a3b8 !important;     /* slate-300 */
+}
+
+.kb-create .btn-kb-minimal {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px !important; /* 与输入框一致的较小圆角 */
+  background: transparent !important;
+  color: #374151 !important;            /* gray-700，较之前略深 */
+  border: 1px solid #d1d5db !important; /* gray-300 普通灰色边框 */
+  font-weight: 400;                      /* 非粗体 */
+  box-shadow: none;
+  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+}
+.kb-create .btn-kb-minimal:hover {
+  background-color: rgb(229, 231, 235) !important; /* gray-200 */
+  border-color: #9ca3af !important;                /* gray-400 */
+  color: #1f2937 !important;                       /* gray-800 更深一点 */
+}
+.dark .kb-create .btn-kb-minimal {
+  color: #cbd5e1 !important;            /* slate-300 */
+  border-color: #475569 !important;     /* slate-600 普通灰边 */
+  box-shadow: none;
+}
+.dark .kb-create .btn-kb-minimal:hover {
+  background-color: transparent !important;        /* 避免亮灰底在暗色下突兀 */
+  border-color: #94a3b8 !important;                /* slate-300 */
+  color: #e2e8f0 !important;                       /* slate-200 */
 }

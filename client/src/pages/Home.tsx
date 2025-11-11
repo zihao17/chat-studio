@@ -562,7 +562,7 @@ const Home: React.FC = () => {
                   // 用户消息 - 气泡样式，右对齐
                   <div className="flex justify-end">
                     <div className="max-w-[70%]">
-                      <div className="bg-blue-500 text-white px-4 py-2 rounded-l-2xl rounded-tr-2xl rounded-br-sm break-words whitespace-pre-wrap">
+                      <div className="bg-[var(--user-bubble-bg)] text-[var(--user-bubble-text)] px-4 py-2 rounded-l-2xl rounded-tr-2xl rounded-br-sm break-words whitespace-pre-wrap transition-colors">
                         {message.content}
                       </div>
                       {message.attachments && message.attachments.length > 0 && (

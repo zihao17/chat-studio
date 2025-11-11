@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Input, Upload, Empty, Spin, App as AntdApp, Popconfirm } from "antd";
 import type { UploadProps } from "antd";
 import { kbListCollectionsByGroup, kbCreateCollection, kbUploadAndIngest, kbListDocuments, kbDeleteCollection, kbDeleteDocument, type KbDocument } from "../../utils/kbApi";
 import { useChatContext } from "../../contexts/ChatContext";
-import { DeleteOutlined, CheckCircleOutlined, PlusCircleOutlined } from "@ant-design/icons";
+import { DeleteOutlined, CheckCircleOutlined, PlusCircleOutlined, SettingOutlined } from "@ant-design/icons";
 
 const KnowledgePanel: React.FC = () => {
   // 使用 AntD App 上下文，保证 message 在 v5 下行为一致
@@ -15,6 +15,9 @@ const KnowledgePanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [docCache, setDocCache] = useState<Record<number, { loading: boolean; items: KbDocument[] }>>({});
+  // 拖拽悬停反馈：当前悬停的集合ID + 深度计数，避免子元素抖动
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const dragDepthRef = useRef<Record<number, number>>({});
 
   const load = async () => {
     try {
@@ -131,16 +134,46 @@ const KnowledgePanel: React.FC = () => {
   return (
     <div className="h-full flex flex-col p-3 text-sm text-foreground">
       {/* 顶部固定：提示 + 操作按钮 + 新建表单（折叠） */}
-      <div className="sticky top-0 z-10 bg-panel pb-2 border-b border-surface">
-        <div className="text-xs text-gray-500 mb-2">可拖放或点击“+”添加文件</div>
-        <div className="flex gap-2">
-          <Button size="small" onClick={() => setShowCreate((v) => !v)}>新建知识库</Button>
-          <Button size="small" disabled>管理</Button>
+      <div className="sticky top-0 z-10 bg-panel pb-2">
+        <div className="kb-header-actions flex gap-2 justify-center">
+          <Button
+            size="middle"
+            shape="round"
+            className="btn-kb-ghost"
+            icon={<PlusCircleOutlined />}
+            onClick={() => setShowCreate((v) => !v)}
+          >
+            新建知识库
+          </Button>
+          <Button
+            size="middle"
+            shape="round"
+            className="btn-kb-ghost"
+            icon={<SettingOutlined />}
+            onClick={() => message.info("\u300C管理知识库\u300D即将推出")}
+          >
+            管理知识库
+          </Button>
         </div>
+        <div className="text-xs text-gray-500 mt-2 text-center">添加文件：拖放文件 或 点击+号</div>
         {showCreate && (
-          <div className="flex gap-2 mt-2">
-            <Input size="small" placeholder="新知识库名称" value={name} onChange={(e) => setName(e.target.value)} />
-            <Button size="small" type="primary" onClick={onCreate}>创建</Button>
+          <div className="kb-create flex gap-2 mt-2 justify-center">
+            <Input
+              size="middle"
+              className="kb-input"
+              placeholder="新知识库名称"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              allowClear
+            />
+            <Button
+              size="middle"
+              shape="round"
+              className="btn-kb-minimal"
+              onClick={onCreate}
+            >
+              创建
+            </Button>
           </div>
         )}
       </div>
@@ -157,13 +190,44 @@ const KnowledgePanel: React.FC = () => {
               const docs = docCache[c.id]?.items || [];
               const loadingDocs = docCache[c.id]?.loading;
               return (
-                <div key={c.id} className={`rounded-xl border overflow-hidden transition ${isActive? 'border-accent bg-[var(--accent-bg)]' : 'border-surface bg-[var(--surface)] hover:bg-[var(--surface-hover)] hover:border-accent'}`}
-                  onDragOver={(e) => {
-                    if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes("Files")) return;
+                <div
+                  key={c.id}
+                  className={`rounded-xl overflow-hidden transition-all duration-200 ease-out ${
+                    dragOverId === c.id
+                      ? 'border border-green-300 kb-drop-hover'
+                      : isActive
+                        ? 'border border-accent bg-[var(--accent-bg)]'
+                        : 'border border-surface bg-[var(--surface)] hover:bg-[var(--surface-hover)] hover:border-accent'
+                  }`}
+                  onDragEnter={(e) => {
+                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    if (!hasFiles) return;
                     e.preventDefault();
+                    dragDepthRef.current[c.id] = (dragDepthRef.current[c.id] || 0) + 1;
+                    setDragOverId(c.id);
+                  }}
+                  onDragOver={(e) => {
+                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    if (!hasFiles) return;
+                    e.preventDefault();
+                    // 明确设置 dropEffect，配合视觉反馈
+                    e.dataTransfer.dropEffect = 'copy';
+                    if (dragOverId !== c.id) setDragOverId(c.id);
+                  }}
+                  onDragLeave={(e) => {
+                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    if (!hasFiles) return;
+                    e.preventDefault();
+                    const next = Math.max(0, (dragDepthRef.current[c.id] || 1) - 1);
+                    dragDepthRef.current[c.id] = next;
+                    if (next === 0 && dragOverId === c.id) {
+                      setDragOverId(null);
+                    }
                   }}
                   onDrop={(e) => {
                     const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+                    dragDepthRef.current[c.id] = 0;
+                    setDragOverId(null);
                     if (files.length) onDropUpload(c.id, files as File[]);
                   }}
                 >
