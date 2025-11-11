@@ -1,0 +1,119 @@
+    for (const f of files) {
+      const sha = crypto.createHash('sha256').update(f.buffer).digest('hex');
+      // 解析文本 + 文件名解码
+      const filename = decodeFilename(f.originalname || 'unnamed');
+      const ext = (path.extname(filename).replace('.', '') || '').toLowerCase();
+      const mime = f.mimetype || '';
+      const size = f.size || 0;
+      const { text } = await extractText({ buffer: f.buffer, mime, ext });
+
+      // 文档表
+      const docSql = `INSERT INTO kb_documents(collection_id, filename, ext, mime, size, sha256, status)
+                      VALUES(?,?,?,?,?,?,?)`;
+      const docParams = [collectionId, filename, ext, mime, size, sha, 'uploaded'];
+      const docId = await new Promise((resolve, reject) => {
+        db.run(docSql, docParams, function (err) { return err ? reject(err) : resolve(this.lastID); });
+      });
+      inserted.push({ docId, filename: f.originalname, size });
+
+      // 将原文临时放入 chunks 表（idx=-1）以备调试（可选）
+      await new Promise((resolve) => {
+        db.run(
+          'INSERT INTO kb_chunks(collection_id, doc_id, idx, content, tokens, start_pos, end_pos) VALUES(?,?,?,?,?,?,?)',
+          [collectionId, docId, -1, text, Math.ceil(text.length / 4), 0, text.length],
+          () => resolve()
+        );
+      });
+    }
+
+    res.json({ success: true, items: inserted });
+  } catch (e) {
+    console.error('上传失败', e);
+    res.status(500).json({ success: false, message: e?.message || '上传失败' });
+  }
+});
+
+// 入库：切分 → 嵌入 → 写入 chunks/embeddings/fts
+router.post('/documents/:docId/ingest', async (req, res) => {
+  const db = getDatabase();
+  const docId = parseInt(req.params.docId, 10);
+  if (!docId) return res.status(400).json({ success: false, message: '缺少 docId' });
+  try {
+    const doc = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM kb_documents WHERE id=?', [docId], (err, row) => (err ? reject(err) : resolve(row)));
+    });
+    if (!doc) return res.status(404).json({ success: false, message: '文档不存在' });
+
+    // 取原文（idx=-1）
+    const raw = await new Promise((resolve, reject) => {
+      db.get('SELECT content FROM kb_chunks WHERE doc_id=? AND idx=-1', [docId], (err, row) => (err ? reject(err) : resolve(row?.content || '')));
+    });
+    if (!raw) return res.status(400).json({ success: false, message: '未找到原文内容，请先上传解析' });
+
+    // 切分
+    const pieces = chunkText(raw, { targetChars: 3200, overlapChars: 600 });
+    // 插入 chunks
+    const collectionId = doc.collection_id;
+    const chunkIds = [];
+    for (const p of pieces) {
+      const id = await new Promise((resolve) => {
+        db.run(
+          'INSERT INTO kb_chunks(collection_id, doc_id, idx, content, tokens, start_pos, end_pos) VALUES(?,?,?,?,?,?,?)',
+          [collectionId, docId, p.idx, p.content, p.tokens, p.start_pos, p.end_pos],
+          function () { resolve(this.lastID); }
+        );
+      });
+      chunkIds.push(id);
+    }
+
+    // 嵌入
+    const vectors = await embedBatch(pieces.map((x) => x.content));
+    const dim = vectors[0]?.length || 0;
+    for (let i = 0; i < vectors.length; i++) {
+      await new Promise((resolve) => {
+        db.run(
+          'INSERT OR REPLACE INTO kb_embeddings(chunk_id, collection_id, vector, dim) VALUES(?,?,?,?)',
+          [chunkIds[i], collectionId, Buffer.from(new Float32Array(vectors[i]).buffer), dim],
+          () => resolve()
+        );
+      });
+    }
+
+    // 状态更新
+    await new Promise((resolve) => {
+      db.run('UPDATE kb_documents SET status=? WHERE id=?', ['ready', docId], () => resolve());
+    });
+
+    res.json({ success: true, chunks: chunkIds.length, dim });
+  } catch (e) {
+    console.error('入库失败', e);
+    res.status(500).json({ success: false, message: e?.message || '入库失败' });
+  }
+});
+
+// 搜索调试：混合检索 + 重排（仅返回片段，不调用大模型）
+router.post('/search', async (req, res) => {
+  try {
+    const { collection_id, query, top_k = 10 } = req.body || {};
+    if (!collection_id || !query) return res.status(400).json({ success: false, message: '缺少 collection_id 或 query' });
+    const hybrid = await hybridSearch({ collectionId: parseInt(collection_id, 10), query, topK: 50 });
+    const docs = hybrid.map((h) => h.content);
+    const { rerank } = require('../utils/rerank');
+    const reranked = await rerank(query, docs, Math.min(top_k, 10));
+
+    // 组装最终返回
+    const idSet = new Set(reranked.map((r) => hybrid[r.index].chunk_id));
+    const items = hybrid
+      .map((h, i) => ({ ...h, rerankScore: reranked.find((r) => r.index === i)?.score || null, i }))
+      .filter((x) => idSet.has(x.chunk_id))
+      .sort((a, b) => (b.rerankScore ?? 0) - (a.rerankScore ?? 0))
+      .slice(0, top_k)
+      .map((x) => ({ chunkId: x.chunk_id, docId: x.doc_id, content: x.content, score: x.hybrid, rerankScore: x.rerankScore }));
+    res.json({ success: true, items });
+  } catch (e) {
+    console.error('搜索失败', e);
+    res.status(500).json({ success: false, message: e?.message || '搜索失败' });
+  }
+});
+
+module.exports = router;

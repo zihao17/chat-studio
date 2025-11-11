@@ -55,7 +55,7 @@ async function vectorSearch({ collectionId, query, candidateLimit = 1000 }) {
   const db = getDatabase();
   // 预筛：取最近 N 条 chunk（规模可控）。
   const sql = `SELECT id AS chunk_id, doc_id, collection_id, idx, content
-               FROM kb_chunks WHERE collection_id=?
+               FROM kb_chunks WHERE collection_id=? AND idx!=-1
                ORDER BY id DESC LIMIT ?`;
   const rows = await new Promise((resolve, reject) => {
     db.all(sql, [collectionId, candidateLimit], (err, rs) => (err ? reject(err) : resolve(rs || [])));
@@ -103,4 +103,3 @@ async function hybridSearch({ collectionId, query, alpha = 0.5, topK = 50 }) {
 }
 
 module.exports = { hybridSearch, fetchChunks };
-

@@ -276,11 +276,21 @@ router.post("/chat", validateChatRequest, async (req, res) => {
             const userQuery = nonSystemMessages[nonSystemMessages.length - 1]?.content || "";
             const t0 = Date.now();
             const hybrid = await hybridSearch({ collectionId, query: userQuery, topK: 50 });
-            const docs = hybrid.map((h) => h.content);
-            const reranked = await rerank(userQuery, docs, Math.min(10, docs.length));
+            // DashScope Rerank 对输入文档存在批量上限（<=10）。
+            const RERANK_INPUT_MAX = 10;
+            const candidates = hybrid.slice(0, RERANK_INPUT_MAX);
+            const docs = candidates.map((h) => h.content);
+            let reranked;
+            try {
+              reranked = await rerank(userQuery, docs, Math.min(RERANK_INPUT_MAX, docs.length));
+            } catch (err) {
+              // 再保险降级：若 rerank 全链路失败，则使用 hybrid 排序直接取前 kb_top_k
+              console.warn("RERANK 调用失败，使用 HYBRID 直接排序降级:", err?.message || err);
+              reranked = candidates.map((_, i) => ({ index: i, score: candidates[i].hybrid }));
+            }
             const keep = reranked.slice(0, Math.min(kb_top_k, 6));
             // 取文档标题
-            const docIds = Array.from(new Set(keep.map((r) => hybrid[r.index].doc_id)));
+            const docIds = Array.from(new Set(keep.map((r) => candidates[r.index].doc_id)));
             let titleMap = new Map();
             if (docIds.length) {
               const db = getDatabase();
@@ -304,13 +314,13 @@ router.post("/chat", validateChatRequest, async (req, res) => {
               titleMap = new Map(rows.map((r) => [r.id, fixGarbled(r.filename)]));
             }
             citations = keep.map((r) => {
-              const h = hybrid[r.index];
+              const h = candidates[r.index];
               const title = titleMap.get(h.doc_id) || `doc-${h.doc_id}`;
               const preview = (h.content || "").slice(0, 120);
               return { title, preview, docId: h.doc_id, chunkId: h.chunk_id, score: r.score, idx: h.idx };
             });
             const contextBlocks = keep.map((r, i) => {
-              const h = hybrid[r.index];
+              const h = candidates[r.index];
               const title = citations[i]?.title || `doc-${h.doc_id}`;
               return `【来源${i + 1}｜${title}｜#${h.idx}】\n${h.content}`;
             });

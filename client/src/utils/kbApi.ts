@@ -6,6 +6,13 @@ export interface KbCollection {
   id: number;
   name: string;
   description?: string;
+  group_id?: number | null;
+}
+
+export interface KbGroup {
+  id: number;
+  name: string;
+  description?: string;
 }
 
 export interface KbDocument {
@@ -24,13 +31,23 @@ export async function kbListCollections(): Promise<KbCollection[]> {
   return resp.data?.items || [];
 }
 
-export async function kbCreateCollection(name: string, description?: string): Promise<KbCollection> {
-  const resp = await axios.post(`${API_BASE_URL}/api/kb/collections`, { name, description });
-  return { id: resp.data?.id, name, description } as KbCollection;
+export async function kbListCollectionsByGroup(groupId?: number): Promise<KbCollection[]> {
+  const url = groupId ? `${API_BASE_URL}/api/kb/collections?group_id=${groupId}` : `${API_BASE_URL}/api/kb/collections`;
+  const resp = await axios.get(url);
+  return resp.data?.items || [];
+}
+
+export async function kbCreateCollection(name: string, description?: string, groupId?: number): Promise<KbCollection> {
+  const resp = await axios.post(`${API_BASE_URL}/api/kb/collections`, { name, description, group_id: groupId });
+  return { id: resp.data?.id, name, description, group_id: groupId } as KbCollection;
 }
 
 export async function kbDeleteCollection(id: number): Promise<void> {
   await axios.delete(`${API_BASE_URL}/api/kb/collections/${id}`);
+}
+
+export async function kbUpdateCollection(id: number, payload: Partial<{ name: string; description: string; group_id: number | null; }>): Promise<void> {
+  await axios.put(`${API_BASE_URL}/api/kb/collections/${id}`, payload);
 }
 
 export async function kbUploadAndIngest(collectionId: number, files: File[], onProgress?: (index: number, percent: number) => void): Promise<void> {
@@ -64,4 +81,27 @@ export interface KbSearchItem { chunkId: number; docId: number; content: string;
 export async function kbSearch(collectionId: number, query: string, topK = 10): Promise<KbSearchItem[]> {
   const resp = await axios.post(`${API_BASE_URL}/api/kb/search`, { collection_id: collectionId, query, top_k: topK });
   return resp.data?.items || [];
+}
+
+export async function kbDeleteDocument(docId: number): Promise<void> {
+  await axios.delete(`${API_BASE_URL}/api/kb/documents/${docId}`);
+}
+
+export async function kbPasteText(collectionId: number, text: string, filename?: string): Promise<{ docId: number }> {
+  const resp = await axios.post(`${API_BASE_URL}/api/kb/documents/paste`, { collection_id: collectionId, text, filename });
+  return { docId: resp.data?.docId };
+}
+
+export async function kbListGroups(): Promise<KbGroup[]> {
+  const resp = await axios.get(`${API_BASE_URL}/api/kb/groups`);
+  return resp.data?.items || [];
+}
+
+export async function kbCreateGroup(name: string, description?: string): Promise<KbGroup> {
+  const resp = await axios.post(`${API_BASE_URL}/api/kb/groups`, { name, description });
+  return { id: resp.data?.id, name, description } as KbGroup;
+}
+
+export async function kbDeleteGroup(id: number): Promise<void> {
+  await axios.delete(`${API_BASE_URL}/api/kb/groups/${id}`);
 }

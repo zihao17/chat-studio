@@ -1,0 +1,140 @@
+/**
+ * 知识库路由：集合管理、文档上传与入库、搜索调试
+ */
+'use strict';
+
+const express = require('express');
+const multer = require('multer');
+const crypto = require('crypto');
+const path = require('path');
+const { getDatabase } = require('../db/database');
+const { extractText } = require('../utils/fileParser');
+const { chunkText } = require('../utils/chunker');
+const { embedBatch } = require('../utils/embedding');
+const { hybridSearch, fetchChunks } = require('../utils/hybridSearch');
+
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 10 } });
+
+function getUserId(req) {
+  // MVP：若有鉴权可从 req.user.id 取；暂用 1
+  return (req.user && req.user.id) || 1;
+}
+
+/**
+ * 安全解码上传的文件名，防止中文乱码。
+ * 某些代理/浏览器会把原始 UTF-8 字节按 latin1 解读成 JS 字符串，例如 "中文" -> "Ã¤Â¸Â­Ã¦Â–Â‡"。
+ * 仅在“看起来像乱码”或转换后更像 CJK 文本时才进行 latin1->utf8 转换，避免误改本就正常的名字。
+ * @param {string} name 原始文件名
+ * @returns {string} 解析后的文件名（尽可能保持中文正常显示）
+ */
+function decodeFilename(name) {
+  const s = name || 'unnamed';
+  try {
+    const looksMojibake = /Ã|Â|â|€|¢|„|™|œ|�/.test(s);
+    const originalHasCJK = /[\u4E00-\u9FFF]/.test(s);
+    const converted = Buffer.from(s, 'latin1').toString('utf8');
+    const convertedHasCJK = /[\u4E00-\u9FFF]/.test(converted);
+    if (looksMojibake || (convertedHasCJK && !originalHasCJK)) {
+      return converted || s;
+    }
+    return s;
+  } catch {
+    return s;
+  }
+}
+
+/**
+ * 兼容历史数据：尝试修复被误按 latin1 保存的 UTF-8 文本为正确中文。
+ * 典型乱码形态如："Ã¤Â¸Â­Ã¦Â–Â‡"，修复后为："中文"。
+ * 仅当原始文本看起来像乱码，或转换后明显不像 CJK 文本时，才采用修复结果。
+ * @param {string} text 原始文本
+ * @returns {string} 修复后的文本
+ */
+function fixGarbledUtf8(text) {
+  if (!text) return text;
+  try {
+    const s = String(text);
+    const looksMojibake = /Ã|Â|â|€|¢|„|™|œ|�/.test(s);
+    const repaired = Buffer.from(s, 'latin1').toString('utf8');
+    const repairedHasCJK = /[\u4E00-\u9FFF]/.test(repaired);
+    const originalHasCJK = /[\u4E00-\u9FFF]/.test(s);
+    if (looksMojibake || (repairedHasCJK && !originalHasCJK)) {
+      return repaired;
+    }
+    return s;
+  } catch {
+    return text;
+  }
+}
+
+// 创建知识库集合
+router.post('/collections', (req, res) => {
+  const db = getDatabase();
+  const { name, description } = req.body || {};
+  const userId = getUserId(req);
+  if (!name) return res.status(400).json({ success: false, message: '缺少 name' });
+  const sql = 'INSERT INTO kb_collections(user_id, name, description) VALUES(?,?,?)';
+  db.run(sql, [userId, name, description || null], function (err) {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    res.json({ success: true, id: this.lastID, name, description: description || '' });
+  });
+});
+
+// 列出集合
+router.get('/collections', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const sql = 'SELECT id, name, description, created_at FROM kb_collections WHERE user_id=? ORDER BY id DESC';
+  db.all(sql, [userId], (err, rows) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    res.json({ success: true, items: rows || [] });
+  });
+});
+
+// 列出集合下的文档
+router.get('/collections/:id/documents', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const id = parseInt(req.params.id, 10);
+  const check = 'SELECT id FROM kb_collections WHERE id=? AND user_id=?';
+  db.get(check, [id, userId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row) return res.status(404).json({ success: false, message: '未找到集合' });
+    const sql = `SELECT d.id as docId, d.filename, d.ext, d.mime, d.size, d.status, d.created_at,
+                        (SELECT COUNT(1) FROM kb_chunks c WHERE c.doc_id = d.id AND c.idx != -1) as chunk_count
+                 FROM kb_documents d WHERE d.collection_id=? ORDER BY d.id DESC`;
+    db.all(sql, [id], (e, rows) => {
+      if (e) return res.status(500).json({ success: false, message: e.message });
+      const items = (rows || []).map(r => ({ ...r, filename: fixGarbledUtf8(r.filename) }));
+      res.json({ success: true, items });
+    });
+  });
+});
+
+// 删除集合（级联）
+router.delete('/collections/:id', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const id = parseInt(req.params.id, 10);
+  const check = 'SELECT id FROM kb_collections WHERE id=? AND user_id=?';
+  db.get(check, [id, userId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row) return res.status(404).json({ success: false, message: '未找到集合' });
+    db.run('DELETE FROM kb_collections WHERE id=?', [id], (e) => {
+      if (e) return res.status(500).json({ success: false, message: e.message });
+      res.json({ success: true });
+    });
+  });
+});
+
+// 上传文档并登记（仅元信息+原文）
+router.post('/documents/upload', upload.array('files'), async (req, res) => {
+  try {
+    const db = getDatabase();
+    const collectionId = parseInt(req.body.collection_id || req.query.collection_id, 10);
+    if (!collectionId) return res.status(400).json({ success: false, message: '缺少 collection_id' });
+    const files = req.files || [];
+    if (!files.length) return res.status(400).json({ success: false, message: '未收到文件' });
+
+    const inserted = [];

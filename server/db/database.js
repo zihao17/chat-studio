@@ -124,6 +124,18 @@ function initializeTables(db) {
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     `;
+    // 知识库分组表（第二阶段）
+    const createKbGroups = `
+      CREATE TABLE IF NOT EXISTS kb_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `;
 
     const createKbDocuments = `
       CREATE TABLE IF NOT EXISTS kb_documents (
@@ -135,6 +147,8 @@ function initializeTables(db) {
         size INTEGER,
         sha256 TEXT,
         status TEXT,
+        progress INTEGER DEFAULT 0,
+        error TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (collection_id) REFERENCES kb_collections (id) ON DELETE CASCADE
@@ -205,6 +219,8 @@ function initializeTables(db) {
       "CREATE INDEX IF NOT EXISTS idx_messages_user_id ON chat_messages (user_id)",
       "CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON chat_messages (timestamp)",
       "CREATE INDEX IF NOT EXISTS idx_kb_collections_user ON kb_collections (user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_kb_collections_group ON kb_collections (group_id)",
+      "CREATE INDEX IF NOT EXISTS idx_kb_groups_user ON kb_groups (user_id)",
       "CREATE INDEX IF NOT EXISTS idx_kb_docs_collection ON kb_documents (collection_id)",
       "CREATE INDEX IF NOT EXISTS idx_kb_chunks_doc ON kb_chunks (doc_id)",
       "CREATE INDEX IF NOT EXISTS idx_kb_chunks_collection ON kb_chunks (collection_id)",
@@ -238,6 +254,13 @@ function initializeTables(db) {
       });
 
       // 知识库表
+      db.run(createKbGroups, (err) => {
+        if (err) {
+          console.error("❌ 创建知识库分组表失败:", err.message);
+          return reject(err);
+        }
+        console.log("✅ 知识库分组表创建成功");
+      });
       db.run(createKbCollections, (err) => {
         if (err) {
           console.error("❌ 创建知识库表失败:", err.message);
@@ -293,9 +316,28 @@ function initializeTables(db) {
         });
       });
 
-      console.log("✅ 数据库表结构初始化完成");
-      console.log("📚 知识库表已就绪");
-      resolve();
+      // 迁移：为 kb_collections 增加 group_id；为 kb_documents 增加 progress/error 字段（如果缺失）
+      const ensureColumn = (table, column, type, callback) => {
+        db.all(`PRAGMA table_info(${table})`, (err, rows) => {
+          if (err) return callback(err);
+          const exists = (rows || []).some((r) => String(r.name).toLowerCase() === String(column).toLowerCase());
+          if (exists) return callback();
+          db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`, callback);
+        });
+      };
+
+      ensureColumn('kb_collections', 'group_id', 'INTEGER', (err) => {
+        if (err) console.warn('⚠️ 为 kb_collections 添加 group_id 失败/可能已存在:', err.message);
+        ensureColumn('kb_documents', 'progress', 'INTEGER DEFAULT 0', (err2) => {
+          if (err2) console.warn('⚠️ 为 kb_documents 添加 progress 失败/可能已存在:', err2.message);
+          ensureColumn('kb_documents', 'error', 'TEXT', (err3) => {
+            if (err3) console.warn('⚠️ 为 kb_documents 添加 error 失败/可能已存在:', err3.message);
+            console.log("✅ 数据库表结构初始化完成");
+            console.log("📚 知识库表已就绪");
+            resolve();
+          });
+        });
+      });
     });
   });
 }

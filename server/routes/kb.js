@@ -71,24 +71,53 @@ function fixGarbledUtf8(text) {
 // 创建知识库集合
 router.post('/collections', (req, res) => {
   const db = getDatabase();
-  const { name, description } = req.body || {};
+  const { name, description, group_id } = req.body || {};
   const userId = getUserId(req);
   if (!name) return res.status(400).json({ success: false, message: '缺少 name' });
-  const sql = 'INSERT INTO kb_collections(user_id, name, description) VALUES(?,?,?)';
-  db.run(sql, [userId, name, description || null], function (err) {
+  const sql = 'INSERT INTO kb_collections(user_id, name, description, group_id) VALUES(?,?,?,?)';
+  db.run(sql, [userId, name, description || null, group_id || null], function (err) {
     if (err) return res.status(500).json({ success: false, message: err.message });
-    res.json({ success: true, id: this.lastID, name, description: description || '' });
+    res.json({ success: true, id: this.lastID, name, description: description || '', group_id: group_id || null });
   });
 });
 
-// 列出集合
+// 列出集合（可按分组筛选）
 router.get('/collections', (req, res) => {
   const db = getDatabase();
   const userId = getUserId(req);
-  const sql = 'SELECT id, name, description, created_at FROM kb_collections WHERE user_id=? ORDER BY id DESC';
-  db.all(sql, [userId], (err, rows) => {
+  const groupId = req.query.group_id ? parseInt(req.query.group_id, 10) : null;
+  const sql = groupId
+    ? 'SELECT id, name, description, group_id, created_at FROM kb_collections WHERE user_id=? AND group_id=? ORDER BY id DESC'
+    : 'SELECT id, name, description, group_id, created_at FROM kb_collections WHERE user_id=? ORDER BY id DESC';
+  const params = groupId ? [userId, groupId] : [userId];
+  db.all(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ success: false, message: err.message });
     res.json({ success: true, items: rows || [] });
+  });
+});
+
+// 更新集合（重命名/分组移动/描述）
+router.put('/collections/:id', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const id = parseInt(req.params.id, 10);
+  const { name, description, group_id } = req.body || {};
+  const check = 'SELECT id FROM kb_collections WHERE id=? AND user_id=?';
+  db.get(check, [id, userId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row) return res.status(404).json({ success: false, message: '未找到集合' });
+    const fields = [];
+    const vals = [];
+    if (typeof name === 'string') { fields.push('name=?'); vals.push(name); }
+    if (typeof description === 'string') { fields.push('description=?'); vals.push(description); }
+    if (typeof group_id !== 'undefined') { fields.push('group_id=?'); vals.push(group_id || null); }
+    if (!fields.length) return res.json({ success: true });
+    const sql = `UPDATE kb_collections SET ${fields.join(', ')}, updated_at=CURRENT_TIMESTAMP WHERE id=?`;
+    vals.push(id);
+    db.run(sql, vals, (e) => {
+      if (e) return res.status(500).json({ success: false, message: e.message });
+      res.json({ success: true });
+    });
   });
 });
 
@@ -124,6 +153,72 @@ router.delete('/collections/:id', (req, res) => {
     db.run('DELETE FROM kb_collections WHERE id=?', [id], (e) => {
       if (e) return res.status(500).json({ success: false, message: e.message });
       res.json({ success: true });
+    });
+  });
+});
+
+// 分组：创建
+router.post('/groups', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const { name, description } = req.body || {};
+  if (!name) return res.status(400).json({ success: false, message: '缺少 name' });
+  db.run('INSERT INTO kb_groups(user_id, name, description) VALUES(?,?,?)', [userId, name, description || null], function (err) {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    res.json({ success: true, id: this.lastID, name, description: description || '' });
+  });
+});
+
+// 分组：列表
+router.get('/groups', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  db.all('SELECT id, name, description, created_at FROM kb_groups WHERE user_id=? ORDER BY id DESC', [userId], (err, rows) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    res.json({ success: true, items: rows || [] });
+  });
+});
+
+// 分组：更新
+router.put('/groups/:id', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const id = parseInt(req.params.id, 10);
+  const { name, description } = req.body || {};
+  const check = 'SELECT id FROM kb_groups WHERE id=? AND user_id=?';
+  db.get(check, [id, userId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row) return res.status(404).json({ success: false, message: '未找到分组' });
+    const fields = [];
+    const vals = [];
+    if (typeof name === 'string') { fields.push('name=?'); vals.push(name); }
+    if (typeof description === 'string') { fields.push('description=?'); vals.push(description); }
+    if (!fields.length) return res.json({ success: true });
+    const sql = `UPDATE kb_groups SET ${fields.join(', ')}, updated_at=CURRENT_TIMESTAMP WHERE id=?`;
+    vals.push(id);
+    db.run(sql, vals, (e) => {
+      if (e) return res.status(500).json({ success: false, message: e.message });
+      res.json({ success: true });
+    });
+  });
+});
+
+// 分组：删除（若存在集合引用则禁止）
+router.delete('/groups/:id', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const id = parseInt(req.params.id, 10);
+  const check = 'SELECT id FROM kb_groups WHERE id=? AND user_id=?';
+  db.get(check, [id, userId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row) return res.status(404).json({ success: false, message: '未找到分组' });
+    db.get('SELECT COUNT(1) AS cnt FROM kb_collections WHERE group_id=?', [id], (e2, r2) => {
+      if (e2) return res.status(500).json({ success: false, message: e2.message });
+      if ((r2?.cnt || 0) > 0) return res.status(400).json({ success: false, message: '该分组下仍有知识库，无法删除' });
+      db.run('DELETE FROM kb_groups WHERE id=?', [id], (e3) => {
+        if (e3) return res.status(500).json({ success: false, message: e3.message });
+        res.json({ success: true });
+      });
     });
   });
 });
@@ -173,12 +268,44 @@ router.post('/documents/upload', upload.array('files'), async (req, res) => {
   }
 });
 
+// 粘贴纯文本创建文档
+router.post('/documents/paste', async (req, res) => {
+  try {
+    const db = getDatabase();
+    const { collection_id, text, filename } = req.body || {};
+    const collectionId = parseInt(collection_id, 10);
+    if (!collectionId || !text) return res.status(400).json({ success: false, message: '缺少 collection_id 或 text' });
+    const safeName = decodeFilename(filename || `pasted-${Date.now()}.txt`);
+    const size = Buffer.byteLength(text, 'utf8');
+    const sha = crypto.createHash('sha256').update(text).digest('hex');
+    const docId = await new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO kb_documents(collection_id, filename, ext, mime, size, sha256, status, progress) VALUES(?,?,?,?,?,?,?,?)',
+        [collectionId, safeName, 'txt', 'text/plain', size, sha, 'uploaded', 0],
+        function (err) { return err ? reject(err) : resolve(this.lastID); }
+      );
+    });
+    await new Promise((resolve) => {
+      db.run(
+        'INSERT INTO kb_chunks(collection_id, doc_id, idx, content, tokens, start_pos, end_pos) VALUES(?,?,?,?,?,?,?)',
+        [collectionId, docId, -1, text, Math.ceil(text.length / 4), 0, text.length],
+        () => resolve()
+      );
+    });
+    res.json({ success: true, docId });
+  } catch (e) {
+    console.error('粘贴文本创建失败', e);
+    res.status(500).json({ success: false, message: e?.message || '粘贴文本创建失败' });
+  }
+});
+
 // 入库：切分 → 嵌入 → 写入 chunks/embeddings/fts
 router.post('/documents/:docId/ingest', async (req, res) => {
   const db = getDatabase();
   const docId = parseInt(req.params.docId, 10);
   if (!docId) return res.status(400).json({ success: false, message: '缺少 docId' });
   try {
+    await new Promise((resolve) => db.run('UPDATE kb_documents SET status=?, progress=10, error=NULL WHERE id=?', ['processing', docId], () => resolve()));
     const doc = await new Promise((resolve, reject) => {
       db.get('SELECT * FROM kb_documents WHERE id=?', [docId], (err, row) => (err ? reject(err) : resolve(row)));
     });
@@ -205,6 +332,7 @@ router.post('/documents/:docId/ingest', async (req, res) => {
       });
       chunkIds.push(id);
     }
+    await new Promise((resolve) => db.run('UPDATE kb_documents SET progress=? WHERE id=?', [40, docId], () => resolve()));
 
     // 嵌入
     const vectors = await embedBatch(pieces.map((x) => x.content));
@@ -217,18 +345,48 @@ router.post('/documents/:docId/ingest', async (req, res) => {
           () => resolve()
         );
       });
+      const pct = 40 + Math.round(((i + 1) / Math.max(1, vectors.length)) * 55);
+      await new Promise((resolve) => db.run('UPDATE kb_documents SET progress=? WHERE id=?', [Math.min(95, pct), docId], () => resolve()));
     }
 
     // 状态更新
     await new Promise((resolve) => {
-      db.run('UPDATE kb_documents SET status=? WHERE id=?', ['ready', docId], () => resolve());
+      db.run('UPDATE kb_documents SET status=?, progress=? WHERE id=?', ['ready', 100, docId], () => resolve());
     });
 
     res.json({ success: true, chunks: chunkIds.length, dim });
   } catch (e) {
     console.error('入库失败', e);
+    await new Promise((resolve) => db.run('UPDATE kb_documents SET status=?, error=?, progress=? WHERE id=?', ['error', String(e?.message || e), 0, docId], () => resolve()));
     res.status(500).json({ success: false, message: e?.message || '入库失败' });
   }
+});
+
+// 文档详情（状态/进度）
+router.get('/documents/:docId', (req, res) => {
+  const db = getDatabase();
+  const docId = parseInt(req.params.docId, 10);
+  db.get('SELECT id as docId, filename, status, progress, error, created_at FROM kb_documents WHERE id=?', [docId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row) return res.status(404).json({ success: false, message: '未找到文档' });
+    res.json({ success: true, item: row });
+  });
+});
+
+// 删除文档
+router.delete('/documents/:docId', (req, res) => {
+  const db = getDatabase();
+  const userId = getUserId(req);
+  const docId = parseInt(req.params.docId, 10);
+  const sql = `SELECT d.id, c.user_id FROM kb_documents d JOIN kb_collections c ON d.collection_id=c.id WHERE d.id=?`;
+  db.get(sql, [docId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row || row.user_id !== userId) return res.status(404).json({ success: false, message: '文档不存在' });
+    db.run('DELETE FROM kb_documents WHERE id=?', [docId], (e2) => {
+      if (e2) return res.status(500).json({ success: false, message: e2.message });
+      res.json({ success: true });
+    });
+  });
 });
 
 // 搜索调试：混合检索 + 重排（仅返回片段，不调用大模型）
@@ -237,13 +395,22 @@ router.post('/search', async (req, res) => {
     const { collection_id, query, top_k = 10 } = req.body || {};
     if (!collection_id || !query) return res.status(400).json({ success: false, message: '缺少 collection_id 或 query' });
     const hybrid = await hybridSearch({ collectionId: parseInt(collection_id, 10), query, topK: 50 });
-    const docs = hybrid.map((h) => h.content);
+    const RERANK_INPUT_MAX = 10;
+    const candidates = hybrid.slice(0, RERANK_INPUT_MAX);
+    const docs = candidates.map((h) => h.content);
     const { rerank } = require('../utils/rerank');
-    const reranked = await rerank(query, docs, Math.min(top_k, 10));
+    let reranked;
+    try {
+      reranked = await rerank(query, docs, Math.min(top_k, RERANK_INPUT_MAX, docs.length));
+    } catch (err) {
+      // 降级：用 hybrid 分数直接排序
+      console.warn('RERANK 调用失败，使用 HYBRID 直接排序降级:', err?.message || err);
+      reranked = candidates.map((c, i) => ({ index: i, score: c.hybrid }));
+    }
 
     // 组装最终返回
-    const idSet = new Set(reranked.map((r) => hybrid[r.index].chunk_id));
-    const items = hybrid
+    const idSet = new Set(reranked.map((r) => candidates[r.index].chunk_id));
+    const items = candidates
       .map((h, i) => ({ ...h, rerankScore: reranked.find((r) => r.index === i)?.score || null, i }))
       .filter((x) => idSet.has(x.chunk_id))
       .sort((a, b) => (b.rerankScore ?? 0) - (a.rerankScore ?? 0))

@@ -207,15 +207,17 @@ export const useChatSessions = () => {
         setCurrentModel(savedModel);
       }
 
-      // 恢复高级设置
+      // 恢复高级设置（含 RAG）
       if (savedAdvanced) {
         try {
-          const parsed = JSON.parse(savedAdvanced) as { temperature?: number; topP?: number; systemPrompt?: string };
+          const parsed = JSON.parse(savedAdvanced) as { temperature?: number; topP?: number; systemPrompt?: string; kbEnabled?: boolean; kbCollectionId?: number };
           const clamp = (v: number) => Math.min(1.0, Math.max(0.1, v));
           const round1 = (v: number) => Math.round(v * 10) / 10;
           if (typeof parsed.temperature === 'number') setTemperature(round1(clamp(parsed.temperature)));
           if (typeof parsed.topP === 'number') setTopP(round1(clamp(parsed.topP)));
           if (typeof parsed.systemPrompt === 'string') setSystemPrompt(parsed.systemPrompt.trim() === '' ? '' : parsed.systemPrompt);
+          if (typeof parsed.kbEnabled === 'boolean') setKbEnabled(parsed.kbEnabled);
+          if (typeof parsed.kbCollectionId === 'number') setKbCollectionId(parsed.kbCollectionId);
         } catch {}
       }
 
@@ -242,13 +244,13 @@ export const useChatSessions = () => {
     }
   }, [authState.isAuthenticated]);
 
-  // 持久化高级设置到本地
+  // 持久化高级设置到本地（含 RAG 设置）
   useEffect(() => {
-    const payload = JSON.stringify({ temperature, topP, systemPrompt });
+    const payload = JSON.stringify({ temperature, topP, systemPrompt, kbEnabled, kbCollectionId });
     try {
       localStorage.setItem(STORAGE_KEYS.ADVANCED_SETTINGS, payload);
     } catch {}
-  }, [temperature, topP, systemPrompt]);
+  }, [temperature, topP, systemPrompt, kbEnabled, kbCollectionId]);
 
   // 创建新会话
   const createNewSession = useCallback((): ChatSession => {

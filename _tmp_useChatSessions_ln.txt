@@ -1,0 +1,928 @@
+1	import { useState, useEffect, useCallback, useRef } from "react";
+2	import {
+3	  type ChatSession,
+4	  type Message,
+5	  type AttachmentMeta,
+6	  STORAGE_KEYS,
+7	  generateId,
+8	  generateMessageId,
+9	  generateSessionTitle,
+10	} from "../types/chat";
+11	import { callAIChatStream, type ChatMessage } from "../utils/aiApi";
+12	import { useAuth } from "../contexts/AuthContext";
+13	import { useChatSync } from "./useChatSync";
+14	
+15	/**
+16	 * 会话状态管理Hook
+17	 * 提供会话的创建、切换、删除等功能
+18	 */
+19	export const useChatSessions = () => {
+20	  const { state: authState } = useAuth();
+21	  const chatSync = useChatSync();
+22	  const [sessions, setSessions] = useState<ChatSession[]>([]);
+23	  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+24	  const [currentModel, setCurrentModel] = useState<string>("Qwen/Qwen3-Next-80B-A3B-Instruct"); // 默认模型
+25	  // 高级设置：温度、top_p、系统提示词（系统提示词默认不生效，仅作占位展示）
+26	  const [temperature, setTemperature] = useState<number>(0.7);
+27	  const [topP, setTopP] = useState<number>(0.9);
+28	  const [systemPrompt, setSystemPrompt] = useState<string>("");
+29	  // RAG：知识库开关与当前集合
+30	  const [kbEnabled, setKbEnabled] = useState<boolean>(false);
+31	  const [kbCollectionId, setKbCollectionId] = useState<number | undefined>(undefined);
+32	  // 存储每个会话的AbortController，用于中断流式响应
+33	  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+34	  // 标记是否已经进行过登录后的数据同步
+35	  const [hasSyncedAfterLogin, setHasSyncedAfterLogin] = useState(false);
+36	
+37	  // 防抖保存的引用
+38	  const saveTimeoutRef = useRef<number | undefined>(undefined);
+39	  // 自动创建会话的延时器引用
+40	  const autoCreateTimeoutRef = useRef<number | undefined>(undefined);
+41	
+42	  // 获取当前活跃会话
+43	  const currentSession =
+44	    sessions.find((session) => session.id === currentSessionId) || null;
+45	
+46	  // 获取当前会话的加载状态
+47	  const isAILoading = currentSession?.isLoading || false;
+48	
+49	  // 获取指定会话的生成状态
+50	  const isSessionGenerating = useCallback(
+51	    (sessionId: string) => {
+52	      const session = sessions.find((s) => s.id === sessionId);
+53	      return session?.isLoading || false;
+54	    },
+55	    [sessions]
+56	  );
+57	
+58	  // 停止指定会话的生成
+59	  const stopGeneration = useCallback(
+60	    (sessionId: string) => {
+61	      const abortController = abortControllersRef.current.get(sessionId);
+62	      if (abortController) {
+63	        abortController.abort();
+64	        abortControllersRef.current.delete(sessionId);
+65	
+66	        // 查找并更新正在加载的消息，同时清除会话的加载状态
+67	        const session = sessions.find((s) => s.id === sessionId);
+68	        if (session) {
+69	          const loadingMessage = session.messages.find((m) => m.isLoading);
+70	          if (loadingMessage) {
+71	            // 如果消息内容为空或只有空白字符，删除这条消息
+72	            if (!loadingMessage.content || !loadingMessage.content.trim()) {
+73	              // 删除空的加载消息，避免影响后续请求
+74	              setSessions((prevSessions) =>
+75	                prevSessions.map((s) =>
+76	                  s.id === sessionId
+77	                    ? {
+78	                        ...s,
+79	                        messages: s.messages.filter((m) => m.id !== loadingMessage.id),
+80	                        isLoading: false, // 清除会话加载状态
+81	                        updatedAt: Date.now(),
+82	                      }
+83	                    : s
+84	                )
+85	              );
+86	            } else {
+87	              // 如果有内容，添加停止标记
+88	              setSessions((prevSessions) =>
+89	                prevSessions.map((s) =>
+90	                  s.id === sessionId
+91	                    ? {
+92	                        ...s,
+93	                        messages: s.messages.map((msg) =>
+94	                          msg.id === loadingMessage.id
+95	                            ? {
+96	                                ...msg,
+97	                                content: msg.content + "\n\n[生成已停止]",
+98	                                isLoading: false,
+99	                              }
+100	                            : msg
+101	                        ),
+102	                        isLoading: false, // 清除会话加载状态
+103	                        updatedAt: Date.now(),
+104	                      }
+105	                    : s
+106	                )
+107	              );
+108	            }
+109	          } else {
+110	            // 如果没有找到加载中的消息，只清除会话加载状态
+111	            setSessions((prevSessions) =>
+112	              prevSessions.map((s) =>
+113	                s.id === sessionId
+114	                  ? { ...s, isLoading: false, updatedAt: Date.now() }
+115	                  : s
+116	              )
+117	            );
+118	          }
+119	        }
+120	      }
+121	    },
+122	    [sessions, setSessions]
+123	  );
+124	
+125	  // 防抖保存到localStorage（仅在游客模式下）
+126	  const debouncedSave = useCallback(
+127	    (
+128	      sessionsToSave: ChatSession[],
+129	      currentId: string | null,
+130	      modelId?: string
+131	    ) => {
+132	      // 如果用户已登录，不保存到localStorage
+133	      if (authState.isAuthenticated) {
+134	        return;
+135	      }
+136	
+137	      if (saveTimeoutRef.current) {
+138	        clearTimeout(saveTimeoutRef.current);
+139	      }
+140	
+141	      saveTimeoutRef.current = setTimeout(() => {
+142	        try {
+143	          localStorage.setItem(
+144	            STORAGE_KEYS.CHAT_SESSIONS,
+145	            JSON.stringify(sessionsToSave)
+146	          );
+147	          if (currentId) {
+148	            localStorage.setItem(STORAGE_KEYS.CURRENT_SESSION_ID, currentId);
+149	          }
+150	          if (modelId) {
+151	            localStorage.setItem(STORAGE_KEYS.CURRENT_MODEL, modelId);
+152	          }
+153	        } catch (error) {
+154	          console.error("保存会话数据失败:", error);
+155	        }
+156	      }, 500);
+157	    },
+158	    [authState.isAuthenticated]
+159	  );
+160	
+161	  // 设置当前模型并保存到localStorage
+162	  const handleSetCurrentModel = useCallback(
+163	    (modelId: string) => {
+164	      setCurrentModel(modelId);
+165	      // 保存到localStorage（仅在游客模式下）
+166	      if (!authState.isAuthenticated) {
+167	        debouncedSave(sessions, currentSessionId, modelId);
+168	      }
+169	    },
+170	    [authState.isAuthenticated, sessions, currentSessionId, debouncedSave]
+171	  );
+172	
+173	  // 设置指定会话的加载状态
+174	  const setSessionLoading = useCallback(
+175	    (sessionId: string, loading: boolean) => {
+176	      setSessions((prev) => {
+177	        const prevSessions = Array.isArray(prev) ? prev : [];
+178	        const updated = prevSessions.map((session) =>
+179	          session.id === sessionId
+180	            ? { ...session, isLoading: loading, updatedAt: Date.now() }
+181	            : session
+182	        );
+183	        debouncedSave(updated, currentSessionId);
+184	        return updated;
+185	      });
+186	    },
+187	    [currentSessionId, debouncedSave]
+188	  );
+189	
+190	  // 从localStorage加载数据（仅在游客模式下）
+191	  const loadFromStorage = useCallback(() => {
+192	    // 如果用户已登录，不从localStorage加载
+193	    if (authState.isAuthenticated) {
+194	      return;
+195	    }
+196	
+197	    try {
+198	      const savedSessions = localStorage.getItem(STORAGE_KEYS.CHAT_SESSIONS);
+199	      const savedCurrentId = localStorage.getItem(
+200	        STORAGE_KEYS.CURRENT_SESSION_ID
+201	      );
+202	      const savedModel = localStorage.getItem(STORAGE_KEYS.CURRENT_MODEL);
+203	      const savedAdvanced = localStorage.getItem(STORAGE_KEYS.ADVANCED_SETTINGS);
+204	
+205	      // 恢复模型选择
+206	      if (savedModel) {
+207	        setCurrentModel(savedModel);
+208	      }
+209	
+210	      // 恢复高级设置
+211	      if (savedAdvanced) {
+212	        try {
+213	          const parsed = JSON.parse(savedAdvanced) as { temperature?: number; topP?: number; systemPrompt?: string };
+214	          const clamp = (v: number) => Math.min(1.0, Math.max(0.1, v));
+215	          const round1 = (v: number) => Math.round(v * 10) / 10;
+216	          if (typeof parsed.temperature === 'number') setTemperature(round1(clamp(parsed.temperature)));
+217	          if (typeof parsed.topP === 'number') setTopP(round1(clamp(parsed.topP)));
+218	          if (typeof parsed.systemPrompt === 'string') setSystemPrompt(parsed.systemPrompt.trim() === '' ? '' : parsed.systemPrompt);
+219	        } catch {}
+220	      }
+221	
+222	      if (savedSessions) {
+223	        const parsedSessions: ChatSession[] = JSON.parse(savedSessions);
+224	        setSessions(parsedSessions);
+225	
+226	        // 恢复当前会话
+227	        if (
+228	          savedCurrentId &&
+229	          parsedSessions.find((s) => s.id === savedCurrentId)
+230	        ) {
+231	          setCurrentSessionId(savedCurrentId);
+232	        } else if (parsedSessions.length > 0) {
+233	          // 如果没有保存的当前会话ID，选择最新的会话
+234	          const latestSession = parsedSessions.sort(
+235	            (a, b) => b.updatedAt - a.updatedAt
+236	          )[0];
+237	          setCurrentSessionId(latestSession.id);
+238	        }
+239	      }
+240	    } catch (error) {
+241	      console.error("加载会话数据失败:", error);
+242	    }
+243	  }, [authState.isAuthenticated]);
+244	
+245	  // 持久化高级设置到本地
+246	  useEffect(() => {
+247	    const payload = JSON.stringify({ temperature, topP, systemPrompt });
+248	    try {
+249	      localStorage.setItem(STORAGE_KEYS.ADVANCED_SETTINGS, payload);
+250	    } catch {}
+251	  }, [temperature, topP, systemPrompt]);
+252	
+253	  // 创建新会话
+254	  const createNewSession = useCallback((): ChatSession => {
+255	    const newSession: ChatSession = {
+256	      id: generateId(),
+257	      title: "新对话",
+258	      messages: [],
+259	      createdAt: Date.now(),
+260	      updatedAt: Date.now(),
+261	    };
+262	
+263	    console.log("🎯 创建新会话", {
+264	      sessionId: newSession.id,
+265	      title: newSession.title,
+266	      timestamp: new Date(newSession.createdAt).toLocaleString()
+267	    });
+268	
+269	    setSessions((prev) => {
+270	      // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+271	      const prevSessions = Array.isArray(prev) ? prev : [];
+272	      const updated = [newSession, ...prevSessions];
+273	      debouncedSave(updated, newSession.id);
+274	      return updated;
+275	    });
+276	
+277	    setCurrentSessionId(newSession.id);
+278	    return newSession;
+279	  }, [debouncedSave]);
+280	
+281	  // 切换到指定会话
+282	  const switchToSession = useCallback(
+283	    (sessionId: string) => {
+284	      const targetSession = sessions.find((s) => s.id === sessionId);
+285	      if (targetSession) {
+286	        setCurrentSessionId(sessionId);
+287	        debouncedSave(sessions, sessionId);
+288	      }
+289	    },
+290	    [sessions, debouncedSave]
+291	  );
+292	
+293	  // 删除会话
+294	  const deleteSession = useCallback(
+295	    (sessionId: string) => {
+296	      setSessions((prev) => {
+297	        // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+298	        const prevSessions = Array.isArray(prev) ? prev : [];
+299	        const updated = prevSessions.filter((s) => s.id !== sessionId);
+300	
+301	        // 如果删除的是当前会话，需要切换到其他会话
+302	        if (sessionId === currentSessionId) {
+303	          const newCurrentId = updated.length > 0 ? updated[0].id : null;
+304	          setCurrentSessionId(newCurrentId);
+305	          debouncedSave(updated, newCurrentId);
+306	        } else {
+307	          debouncedSave(updated, currentSessionId);
+308	        }
+309	
+310	        return updated;
+311	      });
+312	
+313	      // 如果用户已登录，同时删除云端数据
+314	      if (authState.isAuthenticated) {
+315	        chatSync.deleteSession(sessionId);
+316	      }
+317	    },
+318	    [currentSessionId, debouncedSave, authState.isAuthenticated, chatSync]
+319	  );
+320	
+321	  // 更新会话标题
+322	  const updateSessionTitle = useCallback(
+323	    (sessionId: string, title: string) => {
+324	      setSessions((prev) => {
+325	        // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+326	        const prevSessions = Array.isArray(prev) ? prev : [];
+327	        const updated = prevSessions.map((session) =>
+328	          session.id === sessionId
+329	            ? { ...session, title, updatedAt: Date.now() }
+330	            : session
+331	        );
+332	        debouncedSave(updated, currentSessionId);
+333	        return updated;
+334	      });
+335	    },
+336	    [currentSessionId, debouncedSave]
+337	  );
+338	
+339	  // 添加消息
+340	  const addMessage = useCallback(
+341	    (sessionId: string, messageData: Omit<Message, "id" | "timestamp">) => {
+342	      const newMessage: Message = {
+343	        ...messageData,
+344	        id: generateMessageId(),
+345	        timestamp: Date.now(),
+346	      };
+347	
+348	      setSessions((prev) => {
+349	        // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+350	        const prevSessions = Array.isArray(prev) ? prev : [];
+351	        const updated = prevSessions.map((session) => {
+352	          if (session.id === sessionId) {
+353	            const updatedMessages = [...session.messages, newMessage];
+354	            return {
+355	              ...session,
+356	              messages: updatedMessages,
+357	              updatedAt: Date.now(),
+358	            };
+359	          }
+360	          return session;
+361	        });
+362	        debouncedSave(updated, currentSessionId);
+363	        return updated;
+364	      });
+365	
+366	      // 如果用户已登录，同时保存到云端
+367	      if (authState.isAuthenticated && !messageData.isLoading) {
+368	        // 不在这里保存消息，避免重复保存
+369	        // 用户消息在sendMessage中保存，AI消息在流式完成后保存
+370	      }
+371	
+372	      return newMessage;
+373	    },
+374	    [currentSessionId, debouncedSave, authState.isAuthenticated, chatSync]
+375	  );
+376	
+377	  // 更新消息
+378	  const updateMessage = useCallback(
+379	    (sessionId: string, messageId: string, updates: Partial<Message>) => {
+380	      setSessions((prev) => {
+381	        // 确保 prev 是一个数组，防止 "prev is not iterable" 错误
+382	        const prevSessions = Array.isArray(prev) ? prev : [];
+383	        const updated = prevSessions.map((session) => {
+384	          if (session.id === sessionId) {
+385	            const updatedMessages = session.messages.map((msg) =>
+386	              msg.id === messageId ? { ...msg, ...updates } : msg
+387	            );
+388	            return {
+389	              ...session,
+390	              messages: updatedMessages,
+391	              updatedAt: Date.now(),
+392	            };
+393	          }
+394	          return session;
+395	        });
+396	        debouncedSave(updated, currentSessionId);
+397	        return updated;
+398	      });
+399	    },
+400	    [currentSessionId, debouncedSave]
+401	  );
+402	
+403	  // 发送消息并获取AI回复（流式）
+404	  const sendMessage = useCallback(
+405	    async (
+406	      content: string,
+407	      attachmentsMeta?: AttachmentMeta[],
+408	      options?: { displayContent?: string }
+409	    ) => {
+410	      if (!currentSessionId || !content.trim() || isAILoading) return;
+411	
+412	      const displayContent = (options?.displayContent ?? content).trim();
+413	
+414	      addMessage(currentSessionId, {
+415	        role: "user",
+416	        content: displayContent,
+417	        attachments: attachmentsMeta,
+418	      });
+419	
+420	      // 如果是会话的第一条用户消息，更新会话标题
+421	      const session = sessions.find((s) => s.id === currentSessionId);
+422	      const isFirstUserMessage =
+423	        session &&
+424	        session.messages.filter((m) => m.role === "user").length === 0;
+425	
+426	      // 构造云端保存内容：对用户消息用包装格式保留附件元信息（不保存大段文本）
+427	      const buildCloudContent = (
+428	        role: "user" | "assistant",
+429	        display: string,
+430	        atts?: AttachmentMeta[]
+431	      ): string => {
+432	        if (role !== "user") return display;
+433	        try {
+434	          return JSON.stringify({
+435	            __type: "chatstudio.msg",
+436	            v: 1,
+437	            role,
+438	            display,
+439	            attachments: Array.isArray(atts) ? atts : [],
+440	          });
+441	        } catch {
+442	          return display;
+443	        }
+444	      };
+445	
+446	      if (isFirstUserMessage) {
+447	        const newTitle = generateSessionTitle(displayContent);
+448	        updateSessionTitle(currentSessionId, newTitle);
+449	
+450	        // 如果用户已登录，同时保存标题到云端
+451	        if (authState.isAuthenticated) {
+452	          try {
+453	            await chatSync.saveMessage(
+454	              currentSessionId,
+455	              "user",
+456	              buildCloudContent("user", displayContent, attachmentsMeta),
+457	              newTitle
+458	            );
+459	            console.log("用户消息和标题已保存到云端");
+460	          } catch (error) {
+461	            console.error("保存用户消息到云端失败:", error);
+462	            // 不影响用户体验，消息已在本地保存
+463	          }
+464	        }
+465	      } else {
+466	        // 不是第一条消息，正常保存
+467	        if (authState.isAuthenticated) {
+468	          try {
+469	            await chatSync.saveMessage(
+470	              currentSessionId,
+471	              "user",
+472	              buildCloudContent("user", displayContent, attachmentsMeta)
+473	            );
+474	            console.log("用户消息已保存到云端");
+475	          } catch (error) {
+476	            console.error("保存用户消息到云端失败:", error);
+477	            // 不影响用户体验，消息已在本地保存
+478	          }
+479	        }
+480	      }
+481	
+482	      // 添加AI加载消息
+483	      const loadingMessage = addMessage(currentSessionId, {
+484	        role: "assistant",
+485	        content: "",
+486	        isLoading: true,
+487	      });
+488	
+489	      // 设置当前会话的加载状态
+490	      setSessionLoading(currentSessionId, true);
+491	
+492	      // 创建AbortController用于中断请求
+493	      const abortController = new AbortController();
+494	      abortControllersRef.current.set(currentSessionId, abortController);
+495	
+496	      try {
+497	        // 准备发送给AI的消息历史
+498	        const chatMessages: ChatMessage[] =
+499	          session?.messages
+500	            .filter((m) => !m.isLoading && m.content && m.content.trim()) // 过滤掉加载中的消息和空内容消息
+501	            .map((m) => ({
+502	              role: m.role,
+503	              content: m.content,
+504	            })) || [];
+505	
+506	        // 添加当前用户消息
+507	        chatMessages.push({
+508	          role: "user",
+509	          content: content.trim(),
+510	        });
+511	
+512	        // 用于累积流式响应内容
+513	        let accumulatedContent = "";
+514	        // 标记是否发生错误，避免在错误后用空内容覆盖错误提示
+515	        let errorOccurred = false;
+516	        // 高频chunk合并相关变量
+517	        let chunkBuffer = "";
+518	        let chunkTimer: number | null = null;
+519	
+520	        // 合并chunk更新的函数
+521	        const flushChunkBuffer = () => {
+522	          if (chunkBuffer) {
+523	            accumulatedContent += chunkBuffer;
+524	            updateMessage(currentSessionId, loadingMessage.id, {
+525	              content: accumulatedContent,
+526	              isLoading: true,
+527	            });
+528	            chunkBuffer = "";
+529	          }
+530	          chunkTimer = null;
+531	        };
+532	
+533	        // 调用流式AI接口
+534	        await callAIChatStream(
+535	          chatMessages,
+536	          // onChunk: 接收到数据块时的回调
+537	          (chunk: string) => {
+538	            chunkBuffer += chunk;
+539	            // 每15ms合并一次更新（兼顾实时性和性能）
+540	            if (!chunkTimer) {
+541	              chunkTimer = setTimeout(flushChunkBuffer, 15); // 15ms约为60fps的单帧时间，减少DOM更新频率
+542	            }
+543	          },
+544	          // onError: 错误处理回调
+545	          (error: string) => {
+546	            // 清除pending的chunk更新
+547	            if (chunkTimer) {
+548	              clearTimeout(chunkTimer);
+549	              chunkTimer = null;
+550	            }
+551	            // 确保最后一批chunk被更新
+552	            if (chunkBuffer) {
+553	              accumulatedContent += chunkBuffer;
+554	              chunkBuffer = "";
+555	            }
+556	            
+557	            console.error("AI流式回复失败:", error);
+558	            // 以一条 AI 消息的形式展示友好错误提示，保留在对话历史
+559	            updateMessage(currentSessionId, loadingMessage.id, {
+560	              content: error,
+561	              isLoading: false,
+562	              // 标记为错误消息，用于 UI 层识别（样式保持与普通 AI 消息一致）
+563	              isError: true,
+564	            });
+565	            errorOccurred = true;
+566	            setSessionLoading(currentSessionId, false);
+567	            abortControllersRef.current.delete(currentSessionId);
+568	          },
+569	          // onStats: 接收到统计信息时的回调
+570	          (stats) => {
+571	            // 将统计信息添加到消息中
+572	            updateMessage(currentSessionId, loadingMessage.id, {
+573	              stats: stats,
+574	            });
+575	          },
+576	          currentModel, // 使用当前选中的模型
+577	          {
+578	            temperature,
+579	            top_p: topP,
+580	            abortController,
+581	            user_system_prompt: systemPrompt,
+582	            kb_enabled: kbEnabled,
+583	            kb_collection_id: kbCollectionId,
+584	            kb_top_k: 6,
+585	          }
+586	        );
+587	
+588	        // 流式传输完成，清除加载状态（仅在未发生错误时更新最终内容）
+589	        if (!errorOccurred) {
+590	          // 清除pending的chunk更新并确保最后一批chunk被更新
+591	          if (chunkTimer) {
+592	            clearTimeout(chunkTimer);
+593	            chunkTimer = null;
+594	          }
+595	          if (chunkBuffer) {
+596	            accumulatedContent += chunkBuffer;
+597	            chunkBuffer = "";
+598	          }
+599	          
+600	          updateMessage(currentSessionId, loadingMessage.id, {
+601	            content: accumulatedContent,
+602	            isLoading: false,
+603	          });
+604	
+605	          // AI回复完成后，保存到云端
+606	          if (authState.isAuthenticated && accumulatedContent.trim()) {
+607	            try {
+608	              await chatSync.saveMessage(
+609	                currentSessionId,
+610	                "assistant",
+611	                accumulatedContent
+612	              );
+613	              console.log("AI消息已保存到云端");
+614	            } catch (error) {
+615	              console.error("保存AI消息到云端失败:", error);
+616	              // 不影响用户体验，消息已在本地保存
+617	            }
+618	          }
+619	        }
+620	      } catch (error) {
+621	        console.error("AI回复失败:", error);
+622	
+623	        // 更新错误消息（统一为友好提示）
+624	        updateMessage(currentSessionId, loadingMessage.id, {
+625	          content: "🤖 AI 服务暂时不可用，请稍后重试。",
+626	          isLoading: false,
+627	          isError: true,
+628	        });
+629	      } finally {
+630	        // 清除当前会话的加载状态和AbortController
+631	        setSessionLoading(currentSessionId, false);
+632	        abortControllersRef.current.delete(currentSessionId);
+633	      }
+634	    },
+635	    [
+636	      currentSessionId,
+637	      isAILoading,
+638	      sessions,
+639	      addMessage,
+640	      updateSessionTitle,
+641	      updateMessage,
+642	      setSessionLoading,
+643	      currentModel,
+644	      authState.isAuthenticated,
+645	      chatSync,
+646	    ]
+647	  );
+648	
+649	  // 智能新对话逻辑
+650	  const handleNewChat = useCallback(() => {
+651	    console.log("🔄 触发新对话逻辑");
+652	    
+653	    // 检查当前最新会话是否为空
+654	    if (sessions.length > 0) {
+655	      const latestSession = sessions.sort(
+656	        (a, b) => b.updatedAt - a.updatedAt
+657	      )[0];
+658	      const hasUserMessages = latestSession.messages.some(
+659	        (m) => m.role === "user"
+660	      );
+661	
+662	      if (!hasUserMessages) {
+663	        // 如果最新会话没有用户消息，直接切换到该会话
+664	        console.log("✅ 情况1：复用空会话 - 最新会话无用户消息，直接切换", {
+665	          sessionId: latestSession.id,
+666	          title: latestSession.title,
+667	          messageCount: latestSession.messages.length
+668	        });
+669	        switchToSession(latestSession.id);
+670	        return;
+671	      }
+672	    }
+673	
+674	    // 否则创建新会话
+675	    console.log("🆕 情况1：创建新会话 - 用户主动点击新对话按钮", {
+676	      existingSessions: sessions.length,
+677	      reason: sessions.length === 0 ? "无现有会话" : "最新会话已有用户消息"
+678	    });
+679	    createNewSession();
+680	  }, [sessions, switchToSession, createNewSession]);
+681	
+682	  // 处理用户登录后的数据同步
+683	  useEffect(() => {
+684	    const handleLoginSync = async () => {
+685	      if (
+686	        authState.isAuthenticated &&
+687	        !hasSyncedAfterLogin &&
+688	        !chatSync.isSyncing
+689	      ) {
+690	        console.log("用户登录成功，数据同步将自动进行");
+691	
+692	        // 添加延迟确保cookie完全设置
+693	        await new Promise(resolve => setTimeout(resolve, 500));
+694	
+695	        try {
+696	          // 获取本地游客数据
+697	          const guestSessions = localStorage.getItem(
+698	            STORAGE_KEYS.CHAT_SESSIONS
+699	          );
+700	          const parsedGuestSessions: ChatSession[] = guestSessions
+701	            ? JSON.parse(guestSessions)
+702	            : [];
+703	
+704	          // 加载云端数据（带重试机制）
+705	          const cloudSessions = await loadCloudDataWithRetry();
+706	
+707	          if (parsedGuestSessions.length > 0) {
+708	            console.log(`发现 ${parsedGuestSessions.length} 个游客会话，开始同步到云端`);
+709	            // 有游客数据，需要同步到云端
+710	            const syncSuccess = await syncGuestDataWithRetry(parsedGuestSessions);
+711	
+712	            if (syncSuccess) {
+713	              console.log("游客数据同步成功，重新加载云端数据");
+714	              // 同步成功后，重新加载云端数据（包含刚同步的数据）
+715	              const updatedCloudSessions = await loadCloudDataWithRetry();
+716	              setSessions(updatedCloudSessions);
+717	              console.log(`同步后加载到 ${updatedCloudSessions.length} 个云端会话`);
+718	
+719	              // 设置当前会话为最新的会话
+720	              if (updatedCloudSessions.length > 0) {
+721	                const latestSession = updatedCloudSessions.sort(
+722	                  (a, b) => b.updatedAt - a.updatedAt
+723	                )[0];
+724	                setCurrentSessionId(latestSession.id);
+725	                console.log(`设置当前会话为: ${latestSession.title}`);
+726	              }
+727	
+728	              // 清空本地游客数据
+729	              localStorage.removeItem(STORAGE_KEYS.CHAT_SESSIONS);
+730	              localStorage.removeItem(STORAGE_KEYS.CURRENT_SESSION_ID);
+731	              console.log("游客数据同步成功，本地数据已清空");
+732	            } else {
+733	              console.log("游客数据同步失败，使用现有云端数据");
+734	              // 同步失败，但不清空游客数据，保留在本地
+735	              // 合并游客数据和云端数据显示给用户
+736	              const mergedSessions = [...parsedGuestSessions, ...cloudSessions];
+737	              setSessions(mergedSessions);
+738	              
+739	              if (mergedSessions.length > 0) {
+740	                const latestSession = mergedSessions.sort(
+741	                  (a, b) => b.updatedAt - a.updatedAt
+742	                )[0];
+743	                setCurrentSessionId(latestSession.id);
+744	              }
+745	              console.log(`合并显示 ${mergedSessions.length} 个会话（游客+云端）`);
+746	            }
+747	          } else {
+748	            console.log("没有游客数据，直接使用云端数据");
+749	            // 没有游客数据，直接使用云端数据
+750	            setSessions(cloudSessions);
+751	            if (cloudSessions.length > 0) {
+752	              const latestSession = cloudSessions.sort(
+753	                (a, b) => b.updatedAt - a.updatedAt
+754	              )[0];
+755	              setCurrentSessionId(latestSession.id);
+756	            }
+757	            console.log(`加载 ${cloudSessions.length} 个云端会话`);
+758	          }
+759	
+760	          setHasSyncedAfterLogin(true);
+761	        } catch (error) {
+762	          console.error("登录后数据同步失败:", error);
+763	          // 同步失败时，标记为已同步，避免无限重试
+764	          setHasSyncedAfterLogin(true);
+765	        }
+766	      }
+767	    };
+768	
+769	    // 带重试机制的云端数据加载 - 限制最大重试次数
+770	    const loadCloudDataWithRetry = async (maxRetries = 2): Promise<ChatSession[]> => {
+771	      for (let i = 0; i < maxRetries; i++) {
+772	        try {
+773	          return await chatSync.loadCloudData();
+774	        } catch (error: any) {
+775	          console.warn(`加载云端数据失败 (尝试 ${i + 1}/${maxRetries}):`, error.message);
+776	          if (i === maxRetries - 1) {
+777	            // 最后一次失败，返回空数组而不是抛出错误
+778	            console.error("加载云端数据最终失败，使用空数据");
+779	            return [];
+780	          }
+781	          // 等待后重试，使用固定延迟避免指数增长
+782	          await new Promise(resolve => setTimeout(resolve, 1000));
+783	        }
+784	      }
+785	      return [];
+786	    };
+787	
+788	    // 带重试机制的游客数据同步 - 限制最大重试次数
+789	    const syncGuestDataWithRetry = async (guestSessions: ChatSession[], maxRetries = 2): Promise<boolean> => {
+790	      for (let i = 0; i < maxRetries; i++) {
+791	        try {
+792	          return await chatSync.syncGuestData(guestSessions);
+793	        } catch (error: any) {
+794	          console.warn(`同步游客数据失败 (尝试 ${i + 1}/${maxRetries}):`, error.message);
+795	          if (i === maxRetries - 1) {
+796	            // 最后一次失败，返回false
+797	            console.error("同步游客数据最终失败");
+798	            return false;
+799	          }
+800	          // 等待后重试，使用固定延迟避免指数增长
+801	          await new Promise(resolve => setTimeout(resolve, 1000));
+802	        }
+803	      }
+804	      return false;
+805	    };
+806	
+807	    // 只在认证状态变化且未同步时执行
+808	    if (authState.isAuthenticated && !hasSyncedAfterLogin) {
+809	      handleLoginSync();
+810	    }
+811	  }, [authState.isAuthenticated, hasSyncedAfterLogin]); // 移除chatSync依赖，避免循环
+812	
+813	  // 处理用户登出后的状态重置
+814	  useEffect(() => {
+815	    if (!authState.isAuthenticated && hasSyncedAfterLogin) {
+816	      console.log("👋 用户登出，重置状态...");
+817	      setHasSyncedAfterLogin(false);
+818	      setSessions([]);
+819	      setCurrentSessionId(null);
+820	      console.log("🔄 情况3：登出后重新加载游客数据，将触发初始会话创建");
+821	      // 重新加载游客数据
+822	      loadFromStorage();
+823	    }
+824	  }, [authState.isAuthenticated, hasSyncedAfterLogin, loadFromStorage]);
+825	
+826	  // 如果没有会话，自动创建第一个（仅在游客模式或同步完成后）- 延时检测机制
+827	  useEffect(() => {
+828	    // 清除之前的定时器
+829	    if (autoCreateTimeoutRef.current) {
+830	      clearTimeout(autoCreateTimeoutRef.current);
+831	      autoCreateTimeoutRef.current = undefined;
+832	    }
+833	
+834	    // 条件A：检查是否需要自动创建会话
+835	    const conditionA = sessions.length === 0 && currentSessionId === null;
+836	    
+837	    if (conditionA) {
+838	      // 游客模式或已完成登录同步的情况下才启动计时器
+839	      if (!authState.isAuthenticated || hasSyncedAfterLogin) {
+840	        console.log("⏰ 条件A满足，启动2秒延时检测", {
+841	          mode: authState.isAuthenticated ? "登录模式" : "游客模式",
+842	          hasSyncedAfterLogin,
+843	          sessionsLength: sessions.length,
+844	          currentSessionId
+845	        });
+846	
+847	        // 启动2秒计时器
+848	        autoCreateTimeoutRef.current = window.setTimeout(() => {
+849	          // 2秒后再次检测条件A
+850	          const stillNeedCreate = sessions.length === 0 && currentSessionId === null;
+851	          
+852	          if (stillNeedCreate) {
+853	            console.log("🚀 情况2：延时检测通过，自动创建初始会话", {
+854	              mode: authState.isAuthenticated ? "登录模式" : "游客模式",
+855	              hasSyncedAfterLogin,
+856	              reason: "2秒延时后条件A仍然成立"
+857	            });
+858	            createNewSession();
+859	          } else {
+860	            console.log("⏹️ 延时检测未通过，取消自动创建", {
+861	              sessionsLength: sessions.length,
+862	              currentSessionId,
+863	              reason: "2秒内条件A已不满足"
+864	            });
+865	          }
+866	          
+867	          autoCreateTimeoutRef.current = undefined;
+868	        }, 2000);
+869	      }
+870	    }
+871	  }, [
+872	    sessions.length,
+873	    currentSessionId,
+874	    createNewSession,
+875	    authState.isAuthenticated,
+876	    hasSyncedAfterLogin,
+877	  ]);
+878	
+879	  // 组件挂载时加载游客数据（仅在游客模式下）
+880	  useEffect(() => {
+881	    if (!authState.isAuthenticated) {
+882	      loadFromStorage();
+883	    }
+884	  }, [authState.isAuthenticated, loadFromStorage]);
+885	
+886	  // 清理定时器
+887	  useEffect(() => {
+888	    return () => {
+889	      if (saveTimeoutRef.current) {
+890	        clearTimeout(saveTimeoutRef.current);
+891	      }
+892	      if (autoCreateTimeoutRef.current) {
+893	        clearTimeout(autoCreateTimeoutRef.current);
+894	      }
+895	    };
+896	  }, []);
+897	
+898	  return {
+899	    sessions,
+900	    currentSessionId,
+901	    currentSession,
+902	    isAILoading,
+903	    currentModel,
+904	    isSessionGenerating,
+905	    createNewSession,
+906	    switchToSession,
+907	    deleteSession,
+908	    updateSessionTitle,
+909	    addMessage,
+910	    updateMessage,
+911	    sendMessage,
+912	    stopGeneration,
+913	    setCurrentModel: handleSetCurrentModel,
+914	    handleNewChat,
+915	    // 高级设置导出
+916	    temperature,
+917	    topP,
+918	    systemPrompt,
+919	    setTemperature,
+920	    setTopP,
+921	    setSystemPrompt,
+922	    // RAG 设置导出
+923	    kbEnabled,
+924	    setKbEnabled,
+925	    kbCollectionId,
+926	    setKbCollectionId,
+927	  };
+928	};
