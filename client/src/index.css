@@ -18,8 +18,8 @@
 
 /* 应用/面板背景变量（用于强制覆盖暗色媒体影响） */
 :root {
-  --app-bg: #f9fafb;    /* gray-50 */
-  --panel-bg: #ffffff;  /* white */
+  --app-bg: #f9fafb; /* gray-50 */
+  --panel-bg: #ffffff; /* white */
   --surface: #f3f4f6; /* gray-100 */
   --surface-hover: #e5e7eb; /* gray-200 */
   --surface-border: #e5e7eb; /* gray-200 */
@@ -37,8 +37,8 @@
   --attachment-progress: #2563eb; /* blue-600 */
 }
 .dark {
-  --app-bg: #0b0f19;   /* 近 gray-950 */
-  --panel-bg: #111827;  /* gray-900 */
+  --app-bg: #0b0f19; /* 近 gray-950 */
+  --panel-bg: #111827; /* gray-900 */
   --surface: #1f2937; /* gray-800 */
   --surface-hover: #374151; /* gray-700 */
   --surface-border: #374151; /* gray-700 */
@@ -64,8 +64,11 @@
   body {
     @apply bg-background text-foreground;
   }
-  html, body, #root {
-    transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+  html,
+  body,
+  #root {
+    transition: background-color 0.25s ease, color 0.25s ease,
+      border-color 0.25s ease;
   }
 
   /* 主题切换瞬时禁用过渡，确保同帧统一更新 */
@@ -92,7 +95,7 @@
   html.theme-switching .ant-dropdown-menu-item {
     transition: none !important;
   }
-  
+
   /* 统一滚动条颜色，避免切换主题时出现 UA 级别颜色闪烁 */
   :root {
     --scrollbar-thumb: #c6c6c6; /* light: thumb */
@@ -102,14 +105,18 @@
     --scrollbar-thumb: #4b5563; /* dark: thumb */
     --scrollbar-track: #1f2937; /* dark: track */
   }
-  
+
   /* Firefox 滚动条配色（不设置宽度，避免影响已有隐藏样式）*/
   * {
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
   /* WebKit 滚动条配色（仅设置颜色，保留圆角与隐藏策略）*/
-  *::-webkit-scrollbar-thumb { background-color: var(--scrollbar-thumb); }
-  *::-webkit-scrollbar-track { background-color: var(--scrollbar-track); }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+  }
+  *::-webkit-scrollbar-track {
+    background-color: var(--scrollbar-track);
+  }
 }
 
 /* 修复 Ant Design App 组件导致的字体大小变化 */
@@ -222,11 +229,11 @@
   /* 代码块语言角标与复制按钮（强制覆盖，参考 step40 策略） */
   .markdown-lang-badge {
     background-color: #e5e7eb !important; /* gray-200 */
-    color: #374151 !important;            /* gray-700 */
+    color: #374151 !important; /* gray-700 */
   }
   .dark .markdown-lang-badge {
     background-color: #374151 !important; /* gray-700 */
-    color: #d1d5db !important;            /* gray-300 */
+    color: #d1d5db !important; /* gray-300 */
   }
 
   .markdown-copy-btn {
@@ -242,19 +249,39 @@
 /* 自定义工具类 */
 @layer utilities {
   /* 主题背景工具类（使用 CSS 变量，确保亮色优先） */
-  .bg-app { background-color: var(--app-bg) !important; }
-  .bg-panel { background-color: var(--panel-bg) !important; }
-  .border-surface { border-color: var(--surface-border) !important; }
-  .border-accent { border-color: var(--accent-border) !important; }
+  .bg-app {
+    background-color: var(--app-bg) !important;
+  }
+  .bg-panel {
+    background-color: var(--panel-bg) !important;
+  }
+  .border-surface {
+    border-color: var(--surface-border) !important;
+  }
+  .border-accent {
+    border-color: var(--accent-border) !important;
+  }
   /* 附件小卡片主题工具类（强制覆盖，避免优先级/缓存错配） */
-  .bg-attachment { background-color: var(--attachment-card-bg) !important; }
-  .text-attachment { color: var(--attachment-text) !important; }
-  .text-attachment-meta { color: var(--attachment-meta) !important; }
-  .text-attachment-progress { color: var(--attachment-progress) !important; }
+  .bg-attachment {
+    background-color: var(--attachment-card-bg) !important;
+  }
+  .text-attachment {
+    color: var(--attachment-text) !important;
+  }
+  .text-attachment-meta {
+    color: var(--attachment-meta) !important;
+  }
+  .text-attachment-progress {
+    color: var(--attachment-progress) !important;
+  }
 
   /* 新对话按钮专属颜色（避免被全局变量覆盖） */
-  .btn-new-chat { color: #2B7FFF !important; }
-  .dark .btn-new-chat { color: #92BDFF !important; }
+  .btn-new-chat {
+    color: #2b7fff !important;
+  }
+  .dark .btn-new-chat {
+    color: #92bdff !important;
+  }
 
   /* Ant Design 输入在暗色下的边框聚焦颜色（白灰色） */
   .dark .ant-input,
@@ -332,8 +359,12 @@
 .hljs-bullet {
   color: #0550ae !important;
 }
-.hljs-addition { color: #116329 !important; }
-.hljs-deletion { color: #82071e !important; }
+.hljs-addition {
+  color: #116329 !important;
+}
+.hljs-deletion {
+  color: #82071e !important;
+}
 .hljs-comment,
 .hljs-quote {
   color: #656d76 !important;
@@ -369,8 +400,12 @@
 .dark .hljs-bullet {
   color: #79c0ff !important;
 }
-.dark .hljs-addition { color: #3fb950 !important; }
-.dark .hljs-deletion { color: #f85149 !important; }
+.dark .hljs-addition {
+  color: #3fb950 !important;
+}
+.dark .hljs-deletion {
+  color: #f85149 !important;
+}
 .dark .hljs-comment,
 .dark .hljs-quote {
   color: #8b949e !important;
@@ -380,27 +415,31 @@
 .kb-drop-hover {
   /* 更亮更干净的浅绿：不增加边框粗细，仅调整颜色与淡底色 */
   background-color: rgba(34, 197, 94, 0.08) !important; /* green-500 @ 8% */
-  border-color: rgba(110, 231, 183, 0.9) !important;    /* green-300 强化 */
+  border-color: rgba(110, 231, 183, 0.9) !important; /* green-300 强化 */
 }
 .dark .kb-drop-hover {
   /* 暗色下提升明度与透明度，避免灰暗感 */
   background-color: rgba(34, 197, 94, 0.16) !important; /* green-500 @ 16% */
-  border-color: rgba(167, 243, 208, 0.95) !important;   /* green-200 更亮 */
+  border-color: rgba(167, 243, 208, 0.95) !important; /* green-200 更亮 */
 }
 /* KB 顶部按钮现代化样式（胶囊、轻阴影、主题适配） */
 .kb-header-actions .ant-btn {
   height: 36px;
   padding: 0 16px;
   border-radius: 9999px !important; /* 胶囊形 */
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .dark .kb-header-actions .ant-btn {
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .kb-header-actions .btn-kb-primary {
-  background-image: linear-gradient(90deg, #34d399, #10b981) !important; /* emerald 400 -> 500 */
+  background-image: linear-gradient(
+    90deg,
+    #34d399,
+    #10b981
+  ) !important; /* emerald 400 -> 500 */
   border-color: #10b981 !important;
   color: #ffffff !important;
 }
@@ -418,7 +457,7 @@
 }
 .dark .kb-header-actions .btn-kb-ghost {
   background-color: #111827 !important; /* gray-900 */
-  border-color: #374151 !important;     /* gray-700 */
+  border-color: #374151 !important; /* gray-700 */
   color: var(--color-foreground) !important;
 }
 .dark .kb-header-actions .btn-kb-ghost:hover {
@@ -433,22 +472,25 @@
   color: var(--color-foreground) !important;
   padding: 0 14px !important;
   box-shadow: none;
-  transition: border-color .2s ease, background-color .2s ease, color .2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease,
+    color 0.2s ease;
 }
 .kb-create .kb-input:hover {
   border-color: #11182733 !important; /* 过渡更自然 */
 }
-.kb-create .kb-input:focus, .kb-create .kb-input-focused {
+.kb-create .kb-input:focus,
+.kb-create .kb-input-focused {
   border-color: #9ca3af !important; /* gray-400 */
 }
 .dark .kb-create .kb-input {
   background-color: #0f172a !important; /* slate-900 */
-  border-color: #334155 !important;     /* slate-700 */
-  color: #e5e7eb !important;            /* gray-200 */
+  border-color: #334155 !important; /* slate-700 */
+  color: #e5e7eb !important; /* gray-200 */
   box-shadow: none;
 }
-.dark .kb-create .kb-input:focus, .dark .kb-create .kb-input-focused {
-  border-color: #94a3b8 !important;     /* slate-300 */
+.dark .kb-create .kb-input:focus,
+.dark .kb-create .kb-input-focused {
+  border-color: #94a3b8 !important; /* slate-300 */
 }
 
 .kb-create .btn-kb-minimal {
@@ -456,24 +498,25 @@
   padding: 0 16px;
   border-radius: 10px !important; /* 与输入框一致的较小圆角 */
   background: transparent !important;
-  color: #374151 !important;            /* gray-700，较之前略深 */
+  color: #374151 !important; /* gray-700，较之前略深 */
   border: 1px solid #d1d5db !important; /* gray-300 普通灰色边框 */
-  font-weight: 400;                      /* 非粗体 */
+  font-weight: 400; /* 非粗体 */
   box-shadow: none;
-  transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease,
+    background-color 0.15s ease;
 }
 .kb-create .btn-kb-minimal:hover {
   background-color: rgb(229, 231, 235) !important; /* gray-200 */
-  border-color: #9ca3af !important;                /* gray-400 */
-  color: #1f2937 !important;                       /* gray-800 更深一点 */
+  border-color: #9ca3af !important; /* gray-400 */
+  color: #1f2937 !important; /* gray-800 更深一点 */
 }
 .dark .kb-create .btn-kb-minimal {
-  color: #cbd5e1 !important;            /* slate-300 */
-  border-color: #475569 !important;     /* slate-600 普通灰边 */
+  color: #cbd5e1 !important; /* slate-300 */
+  border-color: #475569 !important; /* slate-600 普通灰边 */
   box-shadow: none;
 }
 .dark .kb-create .btn-kb-minimal:hover {
-  background-color: transparent !important;        /* 避免亮灰底在暗色下突兀 */
-  border-color: #94a3b8 !important;                /* slate-300 */
-  color: #e2e8f0 !important;                       /* slate-200 */
+  background-color: transparent !important; /* 避免亮灰底在暗色下突兀 */
+  border-color: #94a3b8 !important; /* slate-300 */
+  color: #e2e8f0 !important; /* slate-200 */
 }

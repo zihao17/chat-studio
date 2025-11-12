@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { App as AntdApp, Empty, Input, Modal, Popconfirm, Tag, Upload, Tooltip } from "antd";
+import { App as AntdApp, Button, Empty, Input, Modal, Popconfirm, Tag, Upload, Tooltip } from "antd";
 import type { UploadProps } from "antd";
 import {
   kbListCollections,
@@ -189,14 +189,20 @@ const KbManager: React.FC = () => {
   return (
     <div className="h-full flex flex-col">
       {/* 顶部条：返回按钮 */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-surface bg-panel">
-        <Tag
-          className="cursor-pointer hover:opacity-80"
+      <div className="flex items-center px-3 py-2 border-b border-surface bg-panel">
+        <Button
+          type="text"
+          size="middle"
+          className="flex items-center gap-2 px-3 py-1 h-8 text-base hover:bg-[var(--surface-hover)] transition-colors"
           onClick={() => window.dispatchEvent(new CustomEvent('kb:close-manager'))}
-          icon={<ArrowLeftOutlined />}
-        >返回</Tag>
-        <div className="text-sm text-foreground">知识库管理</div>
-        <div className="flex-1" />
+          icon={<ArrowLeftOutlined className="text-lg" />}
+        >
+          返回
+        </Button>
+        <div className="flex-1 flex justify-center">
+          <div className="text-lg font-medium text-foreground">知识库管理</div>
+        </div>
+        <div className="w-16"></div>
       </div>
 
       {/* 内容区 */}
