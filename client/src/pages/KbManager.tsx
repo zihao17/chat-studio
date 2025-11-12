@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { App as AntdApp, Button, Empty, Input, Modal, Popconfirm, Tag, Upload, Tooltip } from "antd";
 import type { UploadProps } from "antd";
 import {
@@ -28,6 +28,9 @@ const KbManager: React.FC = () => {
   const [, setLoading] = useState(false);
   const [collections, setCollections] = useState<KbCollection[]>([]);
   const [docsMap, setDocsMap] = useState<Record<number, { loading: boolean; items: KbDocument[] }>>({});
+  // 拖拽悬停反馈（与侧边栏知识库保持一致）：当前悬停集合ID + 深度计数
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const dragDepthRef = useRef<Record<number, number>>({});
 
   // 行内重命名
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -94,6 +97,30 @@ const KbManager: React.FC = () => {
     loadCollections();
   }, []);
 
+  // 当窗口失焦、拖拽结束或文档不可见时，重置管理页内的拖拽悬停状态
+  useEffect(() => {
+    const resetDragState = () => {
+      setDragOverId(null);
+      dragDepthRef.current = {};
+    };
+    const onBlur = () => resetDragState();
+    const onDrop = () => resetDragState();
+    const onDragEnd = () => resetDragState();
+    const onVisibility = () => {
+      if (document.hidden) resetDragState();
+    };
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('drop', onDrop);
+    window.addEventListener('dragend', onDragEnd);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('drop', onDrop);
+      window.removeEventListener('dragend', onDragEnd);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
   const makeUploadProps = (collectionId: number): UploadProps => ({
     multiple: true,
     showUploadList: false,
@@ -113,6 +140,22 @@ const KbManager: React.FC = () => {
       }
     },
   });
+
+  // 支持拖放至卡片直接入库
+  const onDropUpload = async (collectionId: number, files: File[]) => {
+    if (!files.length) return;
+    try {
+      setLoading(true);
+      await kbUploadAndIngest(collectionId, files);
+      message.success(`已入库 ${files.length} 个文件`);
+      await refreshDocs(collectionId);
+      window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+    } catch (e: any) {
+      message.error(e?.message || "入库失败");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDeleteCollection = async (id: number) => {
     try {
@@ -218,7 +261,46 @@ const KbManager: React.FC = () => {
               const loadingDocs = docsMap[c.id]?.loading;
               const isActive = kbCollectionId === c.id;
               return (
-                <div key={c.id} className={`rounded-xl border ${isActive? 'border-accent bg-[var(--accent-bg)]' : 'border-surface bg-[var(--surface)] hover:bg-[var(--surface-hover)]'} transition-colors`}>
+                <div
+                  key={c.id}
+                  className={`rounded-xl overflow-hidden transition-all duration-200 ease-out ${
+                    dragOverId === c.id
+                      ? 'border border-green-300 kb-drop-hover'
+                      : isActive
+                        ? 'border border-accent bg-[var(--accent-bg)]'
+                        : 'border border-surface bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                  onDragEnter={(e) => {
+                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    if (!hasFiles) return;
+                    e.preventDefault();
+                    dragDepthRef.current[c.id] = (dragDepthRef.current[c.id] || 0) + 1;
+                    setDragOverId(c.id);
+                  }}
+                  onDragOver={(e) => {
+                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    if (!hasFiles) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    if (dragOverId !== c.id) setDragOverId(c.id);
+                  }}
+                  onDragLeave={(e) => {
+                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    if (!hasFiles) return;
+                    e.preventDefault();
+                    const next = Math.max(0, (dragDepthRef.current[c.id] || 1) - 1);
+                    dragDepthRef.current[c.id] = next;
+                    if (next === 0 && dragOverId === c.id) {
+                      setDragOverId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+                    dragDepthRef.current[c.id] = 0;
+                    setDragOverId(null);
+                    if (files.length) onDropUpload(c.id, files as File[]);
+                  }}
+                >
                   {/* 卡片头：名称 + 操作 */}
                   <div className="flex items-center justify-between px-3 py-2">
                     <div className="min-w-0 flex items-center gap-2">

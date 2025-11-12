@@ -32,6 +32,30 @@ const KnowledgePanel: React.FC = () => {
     load();
   }, []);
 
+  // 当窗口失焦、拖拽结束或文档不可见时，重置所有拖拽悬停状态
+  useEffect(() => {
+    const resetDragState = () => {
+      setDragOverId(null);
+      dragDepthRef.current = {};
+    };
+    const onBlur = () => resetDragState();
+    const onDrop = () => resetDragState();
+    const onDragEnd = () => resetDragState();
+    const onVisibility = () => {
+      if (document.hidden) resetDragState();
+    };
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('drop', onDrop);
+    window.addEventListener('dragend', onDragEnd);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('drop', onDrop);
+      window.removeEventListener('dragend', onDragEnd);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
   const onCreate = async () => {
     if (!name.trim()) return;
     try {
