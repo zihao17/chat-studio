@@ -1,20 +1,46 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Input, Upload, Empty, Spin, App as AntdApp, Popconfirm, Tooltip } from "antd";
+import {
+  Button,
+  Input,
+  Upload,
+  Empty,
+  Spin,
+  App as AntdApp,
+  Popconfirm,
+  Tooltip,
+} from "antd";
 import type { UploadProps } from "antd";
-import { kbListCollectionsByGroup, kbCreateCollection, kbUploadAndIngest, kbListDocuments, kbDeleteCollection, kbDeleteDocument, type KbDocument } from "../../utils/kbApi";
+import {
+  kbListCollectionsByGroup,
+  kbCreateCollection,
+  kbUploadAndIngest,
+  kbListDocuments,
+  kbDeleteCollection,
+  kbDeleteDocument,
+  type KbDocument,
+} from "../../utils/kbApi";
 import { useChatContext } from "../../contexts/ChatContext";
-import { DeleteOutlined, CheckCircleOutlined, PlusCircleOutlined, SettingOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  CheckCircleOutlined,
+  PlusCircleOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
 
 const KnowledgePanel: React.FC = () => {
   // 使用 AntD App 上下文，保证 message 在 v5 下行为一致
   const { message } = AntdApp.useApp();
   const { kbCollectionId, setKbCollectionId } = useChatContext();
-  const [list, setList] = useState<{ id: number; name: string; group_id?: number | null }[]>([]);
+  const [list, setList] = useState<
+    { id: number; name: string; group_id?: number | null }[]
+  >([]);
   const [name, setName] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [docCache, setDocCache] = useState<Record<number, { loading: boolean; items: KbDocument[] }>>({});
+  const [docCache, setDocCache] = useState<
+    Record<number, { loading: boolean; items: KbDocument[] }>
+  >({});
   // 拖拽悬停反馈：当前悬停的集合ID + 深度计数，避免子元素抖动
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const dragDepthRef = useRef<Record<number, number>>({});
@@ -44,15 +70,15 @@ const KnowledgePanel: React.FC = () => {
     const onVisibility = () => {
       if (document.hidden) resetDragState();
     };
-    window.addEventListener('blur', onBlur);
-    window.addEventListener('drop', onDrop);
-    window.addEventListener('dragend', onDragEnd);
-    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("drop", onDrop);
+    window.addEventListener("dragend", onDragEnd);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener('blur', onBlur);
-      window.removeEventListener('drop', onDrop);
-      window.removeEventListener('dragend', onDragEnd);
-      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("drop", onDrop);
+      window.removeEventListener("dragend", onDragEnd);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
@@ -65,7 +91,7 @@ const KnowledgePanel: React.FC = () => {
       await load();
       setKbCollectionId?.(c.id);
       message.success("已创建知识库");
-      window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+      window.dispatchEvent(new CustomEvent("kb:collections-updated"));
     } catch (e: any) {
       message.error(e?.message || "创建失败");
     }
@@ -78,7 +104,7 @@ const KnowledgePanel: React.FC = () => {
         setLoading(true);
         await kbUploadAndIngest(collectionId, [file as unknown as File]);
         message.success(`${file.name} 入库完成`);
-        window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+        window.dispatchEvent(new CustomEvent("kb:collections-updated"));
         await refreshDocs(collectionId);
         return Upload.LIST_IGNORE;
       } catch (e: any) {
@@ -103,13 +129,25 @@ const KnowledgePanel: React.FC = () => {
   };
 
   const refreshDocs = async (collectionId: number) => {
-    setDocCache((prev) => ({ ...prev, [collectionId]: { loading: true, items: prev[collectionId]?.items || [] } }));
+    setDocCache((prev) => ({
+      ...prev,
+      [collectionId]: { loading: true, items: prev[collectionId]?.items || [] },
+    }));
     try {
       const docs = await kbListDocuments(collectionId);
-      setDocCache((prev) => ({ ...prev, [collectionId]: { loading: false, items: docs } }));
+      setDocCache((prev) => ({
+        ...prev,
+        [collectionId]: { loading: false, items: docs },
+      }));
     } catch (e: any) {
       message.error(e?.message || "加载文档失败");
-      setDocCache((prev) => ({ ...prev, [collectionId]: { loading: false, items: prev[collectionId]?.items || [] } }));
+      setDocCache((prev) => ({
+        ...prev,
+        [collectionId]: {
+          loading: false,
+          items: prev[collectionId]?.items || [],
+        },
+      }));
     }
   };
 
@@ -123,8 +161,16 @@ const KnowledgePanel: React.FC = () => {
   };
 
   // 统一的黑底白字提示气泡
-  const KbTip: React.FC<{ title: React.ReactNode; children: React.ReactElement }> = ({ title, children }) => (
-    <Tooltip placement="top" overlayClassName="kb-tooltip" title={title} mouseEnterDelay={0.15}>
+  const KbTip: React.FC<{
+    title: React.ReactNode;
+    children: React.ReactElement;
+  }> = ({ title, children }) => (
+    <Tooltip
+      placement="top"
+      overlayClassName="kb-tooltip"
+      title={title}
+      mouseEnterDelay={0.15}
+    >
       {children}
     </Tooltip>
   );
@@ -137,7 +183,7 @@ const KnowledgePanel: React.FC = () => {
       await load();
       if (kbCollectionId === cId) setKbCollectionId?.(undefined);
       message.success("已删除");
-      window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+      window.dispatchEvent(new CustomEvent("kb:collections-updated"));
     } catch (e: any) {
       message.error(e?.message || "删除失败");
     }
@@ -150,7 +196,7 @@ const KnowledgePanel: React.FC = () => {
       await kbUploadAndIngest(collectionId, files);
       await refreshDocs(collectionId);
       message.success(`已入库 ${files.length} 个文件`);
-      window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+      window.dispatchEvent(new CustomEvent("kb:collections-updated"));
     } catch (e: any) {
       message.error(e?.message || "入库失败");
     } finally {
@@ -165,7 +211,7 @@ const KnowledgePanel: React.FC = () => {
       await kbDeleteDocument(docId);
       await refreshDocs(collectionId);
       message.success("已删除文件");
-      window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+      window.dispatchEvent(new CustomEvent("kb:collections-updated"));
     } catch (e: any) {
       message.error(e?.message || "删除失败");
     }
@@ -190,12 +236,16 @@ const KnowledgePanel: React.FC = () => {
             shape="round"
             className="btn-kb-ghost"
             icon={<SettingOutlined />}
-            onClick={() => window.dispatchEvent(new CustomEvent('kb:open-manager'))}
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("kb:open-manager"))
+            }
           >
             管理知识库
           </Button>
         </div>
-        <div className="text-xs text-gray-500 mt-2 text-center">添加文件：拖放文件 或 点击+号</div>
+        <div className="text-xs text-gray-500 mt-2 text-center">
+          添加文件：拖放文件 或 点击+号
+        </div>
         {showCreate && (
           <div className="kb-create flex gap-2 mt-2 justify-center">
             <Input
@@ -220,7 +270,13 @@ const KnowledgePanel: React.FC = () => {
       <div className="mt-3 flex-1 min-h-0">
         {list.length === 0 ? (
           <div className="rounded-lg border border-surface bg-[var(--surface)] p-3">
-            <Empty description={<span className="text-xs text-gray-500">暂无知识库，创建一个吧</span>} />
+            <Empty
+              description={
+                <span className="text-xs text-gray-500">
+                  暂无知识库，创建一个吧
+                </span>
+              }
+            />
           </div>
         ) : (
           <div className="h-full space-y-2 pr-1">
@@ -234,38 +290,50 @@ const KnowledgePanel: React.FC = () => {
                   key={c.id}
                   className={`rounded-xl overflow-hidden transition-all duration-200 ease-out ${
                     dragOverId === c.id
-                      ? 'border border-green-300 kb-drop-hover'
+                      ? "border border-green-300 kb-drop-hover"
                       : isActive
-                        ? 'border border-accent bg-[var(--accent-bg)]'
-                        : 'border border-surface bg-[var(--surface)] hover:bg-[var(--surface-hover)] hover:border-accent'
+                      ? "border border-accent bg-[var(--accent-bg)]"
+                      : "border border-surface bg-[var(--surface)] hover:bg-[var(--surface-hover)] hover:border-accent"
                   }`}
                   onDragEnter={(e) => {
-                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    const hasFiles =
+                      !!e.dataTransfer &&
+                      Array.from(e.dataTransfer.types || []).includes("Files");
                     if (!hasFiles) return;
                     e.preventDefault();
-                    dragDepthRef.current[c.id] = (dragDepthRef.current[c.id] || 0) + 1;
+                    dragDepthRef.current[c.id] =
+                      (dragDepthRef.current[c.id] || 0) + 1;
                     setDragOverId(c.id);
                   }}
                   onDragOver={(e) => {
-                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    const hasFiles =
+                      !!e.dataTransfer &&
+                      Array.from(e.dataTransfer.types || []).includes("Files");
                     if (!hasFiles) return;
                     e.preventDefault();
                     // 明确设置 dropEffect，配合视觉反馈
-                    e.dataTransfer.dropEffect = 'copy';
+                    e.dataTransfer.dropEffect = "copy";
                     if (dragOverId !== c.id) setDragOverId(c.id);
                   }}
                   onDragLeave={(e) => {
-                    const hasFiles = !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+                    const hasFiles =
+                      !!e.dataTransfer &&
+                      Array.from(e.dataTransfer.types || []).includes("Files");
                     if (!hasFiles) return;
                     e.preventDefault();
-                    const next = Math.max(0, (dragDepthRef.current[c.id] || 1) - 1);
+                    const next = Math.max(
+                      0,
+                      (dragDepthRef.current[c.id] || 1) - 1
+                    );
                     dragDepthRef.current[c.id] = next;
                     if (next === 0 && dragOverId === c.id) {
                       setDragOverId(null);
                     }
                   }}
                   onDrop={(e) => {
-                    const files = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+                    const files = e.dataTransfer?.files
+                      ? Array.from(e.dataTransfer.files)
+                      : [];
                     dragDepthRef.current[c.id] = 0;
                     setDragOverId(null);
                     if (files.length) onDropUpload(c.id, files as File[]);
@@ -273,14 +341,19 @@ const KnowledgePanel: React.FC = () => {
                 >
                   {/* Header */}
                   <div
-                    className={`flex items-center justify-between px-3 py-2 cursor-pointer ${isActive? 'text-[var(--accent-text)]' : 'text-foreground'}`}
+                    className={`flex items-center justify-between pl-3 pr-1 py-2 cursor-pointer ${
+                      isActive ? "text-[var(--accent-text)]" : "text-foreground"
+                    }`}
                     onClick={() => toggleExpand(c.id)}
                     title={c.name}
                   >
                     <div className="flex items-center min-w-0">
                       <span className="truncate">{c.name}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-gray-500" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex items-center gap-1 text-gray-500"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {/* 添加文档到此知识库 */}
                       <Upload
                         {...makeUploadProps(c.id)}
@@ -313,7 +386,9 @@ const KnowledgePanel: React.FC = () => {
                             role="button"
                             aria-label="删除知识库"
                             className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle cursor-pointer text-gray-500 hover:text-red-500 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
                           >
                             <DeleteOutlined />
                           </span>
@@ -323,8 +398,16 @@ const KnowledgePanel: React.FC = () => {
                         <span
                           role="button"
                           aria-label="设为当前知识库"
-                          className={`inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle ${isActive? 'text-green-600 dark:text-green-400' : 'text-gray-500 hover:text-green-600 dark:hover:text-green-400'} transition-colors`}
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setKbCollectionId?.(c.id); }}
+                          className={`inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle ${
+                            isActive
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-gray-500 hover:text-green-600 dark:hover:text-green-400"
+                          } transition-colors`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setKbCollectionId?.(c.id);
+                          }}
                         >
                           <CheckCircleOutlined />
                         </span>
@@ -333,24 +416,35 @@ const KnowledgePanel: React.FC = () => {
                   </div>
                   {/* Body: docs list */}
                   {isOpen && (
-                    <div className="px-3 pb-2">
+                    <div className="pl-3 pr-1 pb-2">
                       {loadingDocs ? (
-                        <div className="py-2"><Spin size="small" /></div>
+                        <div className="py-2">
+                          <Spin size="small" />
+                        </div>
                       ) : docs.length === 0 ? (
-                        <div className="text-xs text-gray-500 py-2">暂无文档，点击上方添加图标</div>
+                        <div className="text-xs text-gray-500 py-2">
+                          暂无文档，点击上方添加图标
+                        </div>
                       ) : (
                         <div className="space-y-1 no-scrollbar">
                           {docs.map((d) => (
                             <div
                               key={d.docId}
-                              className="grid grid-cols-[1fr_88px_56px] items-center text-xs text-foreground border-b border-surface py-1 gap-2"
+                              className="grid grid-cols-[1fr_auto_min-content] items-center text-xs text-foreground border-b border-surface py-1 gap-2"
                             >
                               {/* 文件名：左侧占满，超出省略 */}
                               <div className="min-w-0">
-                                <span className="truncate" title={d.filename}>{d.filename}</span>
+                                <span
+                                  className="truncate text-gray-400"
+                                  title={d.filename}
+                                >
+                                  {d.filename}
+                                </span>
                               </div>
                               {/* 文件大小：固定宽度，右对齐，等宽数字 */}
-                              <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">{formatSize(d.size)}</div>
+                              <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">
+                                {formatSize(d.size)}
+                              </div>
                               {/* 操作图标：固定宽度靠右 */}
                               <div className="flex items-center justify-end whitespace-nowrap">
                                 <Popconfirm
@@ -360,12 +454,16 @@ const KnowledgePanel: React.FC = () => {
                                   cancelText="取消"
                                   okButtonProps={{ danger: true }}
                                   placement="right"
-                                  onConfirm={() => handleDeleteDoc(d.docId, c.id)}
+                                  onConfirm={() =>
+                                    handleDeleteDoc(d.docId, c.id)
+                                  }
                                 >
                                   <KbTip title="删除文件">
                                     <span
                                       className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-400 hover:text-red-500 cursor-pointer"
-                                      onClick={(e) => { e.stopPropagation(); }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                      }}
                                     >
                                       <DeleteOutlined />
                                     </span>

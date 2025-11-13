@@ -221,10 +221,10 @@ const KbManager: React.FC = () => {
 
   const statusTag = (s?: string) => {
     const st = (s || "").toLowerCase();
-    if (st === "ready") return <Tag color="green">ready</Tag>;
-    if (st === "processing") return <Tag color="orange">processing</Tag>;
-    if (st === "failed") return <Tag color="red">failed</Tag>;
-    return <Tag>{s || "-"}</Tag>;
+    if (st === "ready") return <Tag className="kb-tag-compact" color="green">ready</Tag>;
+    if (st === "processing") return <Tag className="kb-tag-compact" color="orange">processing</Tag>;
+    if (st === "failed") return <Tag className="kb-tag-compact" color="red">failed</Tag>;
+    return <Tag className="kb-tag-compact">{s || "-"}</Tag>;
   };
 
   const gridCols = useMemo(() => "grid grid-cols-1 md:grid-cols-2 gap-3", []);
@@ -399,14 +399,14 @@ const KbManager: React.FC = () => {
                         {docs.map((d) => (
                           <div
                             key={d.docId}
-                            className="grid grid-cols-[1fr_88px_80px_88px_56px] items-center text-xs border-b border-surface py-1 gap-2"
+                            className="grid grid-cols-[1fr_auto_auto_min-content_min-content] items-center text-xs border-b border-surface py-1 gap-2"
                           >
                             {/* 文件名 */}
                             <div className="min-w-0"><span className="truncate" title={d.filename}>{d.filename}</span></div>
                             {/* 文件大小 */}
                             <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">{formatSize(d.size)}</div>
                             {/* 块数 */}
-                            <div className="text-right text-gray-500 whitespace-nowrap">块 {typeof d.chunk_count === 'number' ? d.chunk_count : '-'}</div>
+                            <div className="text-right text-gray-500 whitespace-nowrap">{typeof d.chunk_count === 'number' ? d.chunk_count : '-'}块</div>
                             {/* 状态 */}
                             <div className="flex justify-end whitespace-nowrap">{statusTag(d.status)}</div>
                             {/* 操作 */}
