@@ -88,7 +88,11 @@ const KbManager: React.FC = () => {
       const items = await kbListDocuments(collectionId);
       setDocsMap((m) => ({ ...m, [collectionId]: { loading: false, items } }));
     } catch (e: any) {
-      message.error(e?.message || "加载文档失败");
+      // 404 错误静默处理（知识库可能已被删除）
+      const is404 = e?.response?.status === 404 || e?.message?.includes('404');
+      if (!is404) {
+        message.error(e?.message || "加载文档失败");
+      }
       setDocsMap((m) => ({ ...m, [collectionId]: { loading: false, items: m[collectionId]?.items || [] } }));
     }
   };
@@ -364,21 +368,21 @@ const KbManager: React.FC = () => {
                         </span>
                       </KbTip>
                       {/* 删除知识库 */}
-                      <Popconfirm
-                        title="删除知识库"
-                        description="将删除该知识库及其下全部文件，确认删除？"
-                        okText="删除"
-                        cancelText="取消"
-                        okButtonProps={{ danger: true }}
-                        placement="topRight"
-                        onConfirm={() => handleDeleteCollection(c.id)}
-                      >
-                        <KbTip title="删除知识库">
+                      <KbTip title="删除知识库">
+                        <Popconfirm
+                          title="删除知识库"
+                          description="将删除该知识库及其下全部文件，确认删除？"
+                          okText="删除"
+                          cancelText="取消"
+                          okButtonProps={{ danger: true }}
+                          placement="topRight"
+                          onConfirm={() => handleDeleteCollection(c.id)}
+                        >
                           <span role="button" className="w-5 h-5 inline-flex items-center justify-center cursor-pointer hover:text-red-500">
                             <DeleteOutlined />
                           </span>
-                        </KbTip>
-                      </Popconfirm>
+                        </Popconfirm>
+                      </KbTip>
                       {/* 设为使用 */}
                       <KbTip title={isActive ? "当前知识库" : "设为当前知识库"}>
                         <span
@@ -422,20 +426,20 @@ const KbManager: React.FC = () => {
                             <div className="flex justify-end whitespace-nowrap">{statusTag(d.status)}</div>
                             {/* 操作 */}
                             <div className="flex justify-end whitespace-nowrap">
-                              <Popconfirm
-                                title="删除文件"
-                                okText="删除"
-                                cancelText="取消"
-                                okButtonProps={{ danger: true }}
-                                placement="left"
-                                onConfirm={() => handleDeleteDoc(d.docId, c.id)}
-                              >
-                                <KbTip title="删除文件">
+                              <KbTip title="删除文件">
+                                <Popconfirm
+                                  title="删除文件"
+                                  okText="删除"
+                                  cancelText="取消"
+                                  okButtonProps={{ danger: true }}
+                                  placement="left"
+                                  onConfirm={() => handleDeleteDoc(d.docId, c.id)}
+                                >
                                   <span className="w-5 h-5 inline-flex items-center justify-center cursor-pointer text-gray-400 hover:text-red-500">
                                     <DeleteOutlined />
                                   </span>
-                                </KbTip>
-                              </Popconfirm>
+                                </Popconfirm>
+                              </KbTip>
                             </div>
                           </div>
                         ))}

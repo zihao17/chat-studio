@@ -61,11 +61,25 @@ const KnowledgePanel: React.FC = () => {
   // 监听知识库更新事件，实现跨组件同步
   useEffect(() => {
     const handleUpdate = async () => {
-      await load();
-      // 刷新所有已展开知识库的文档列表
+      // 先重新加载知识库列表
+      const items = await kbListCollectionsByGroup().catch(() => []);
+      setList(items);
+      
+      // 获取当前存在的知识库 ID 集合
+      const existingIds = new Set(items.map(c => c.id));
+      
+      // 只刷新仍然存在且已展开的知识库
       const expandedIds = Array.from(expanded);
       for (const id of expandedIds) {
-        await refreshDocs(id);
+        if (existingIds.has(id)) {
+          await refreshDocs(id);
+        }
+      }
+      
+      // 清理已删除知识库的展开状态
+      const nextExpanded = new Set(expandedIds.filter(id => existingIds.has(id)));
+      if (nextExpanded.size !== expanded.size) {
+        setExpanded(nextExpanded);
       }
     };
     window.addEventListener('kb:collections-updated', handleUpdate);
@@ -156,7 +170,11 @@ const KnowledgePanel: React.FC = () => {
         [collectionId]: { loading: false, items: docs },
       }));
     } catch (e: any) {
-      message.error(e?.message || "加载文档失败");
+      // 404 错误静默处理（知识库可能已被删除）
+      const is404 = e?.response?.status === 404 || e?.message?.includes('404');
+      if (!is404) {
+        message.error(e?.message || "加载文档失败");
+      }
       setDocCache((prev) => ({
         ...prev,
         [collectionId]: {
@@ -388,28 +406,25 @@ const KnowledgePanel: React.FC = () => {
                         </KbTip>
                       </Upload>
                       {/* 暂时隐藏：粘贴文本入库、编辑名称 */}
-                      <Popconfirm
-                        title="删除知识库"
-                        description="将删除该知识库及其下的所有文档，确认删除？"
-                        okText="删除"
-                        cancelText="取消"
-                        okButtonProps={{ danger: true }}
-                        placement="topRight"
-                        onConfirm={() => deleteCollection(c.id)}
-                      >
-                        <KbTip title="删除知识库">
+                      <KbTip title="删除知识库">
+                        <Popconfirm
+                          title="删除知识库"
+                          description="将删除该知识库及其下的所有文档，确认删除？"
+                          okText="删除"
+                          cancelText="取消"
+                          okButtonProps={{ danger: true }}
+                          placement="topRight"
+                          onConfirm={() => deleteCollection(c.id)}
+                        >
                           <span
                             role="button"
                             aria-label="删除知识库"
                             className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle cursor-pointer text-gray-500 hover:text-red-500 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
                           >
                             <DeleteOutlined />
                           </span>
-                        </KbTip>
-                      </Popconfirm>
+                        </Popconfirm>
+                      </KbTip>
                       <KbTip title={isActive ? "当前知识库" : "设为当前知识库"}>
                         <span
                           role="button"
@@ -463,28 +478,25 @@ const KnowledgePanel: React.FC = () => {
                               </div>
                               {/* 操作图标：固定宽度靠右 */}
                               <div className="flex items-center justify-end whitespace-nowrap">
-                                <Popconfirm
-                                  title="删除文件"
-                                  description="确认删除该文件？"
-                                  okText="删除"
-                                  cancelText="取消"
-                                  okButtonProps={{ danger: true }}
-                                  placement="right"
-                                  onConfirm={() =>
-                                    handleDeleteDoc(d.docId, c.id)
-                                  }
-                                >
-                                  <KbTip title="删除文件">
+                                <KbTip title="删除文件">
+                                  <Popconfirm
+                                    title="删除文件"
+                                    description="确认删除该文件？"
+                                    okText="删除"
+                                    cancelText="取消"
+                                    okButtonProps={{ danger: true }}
+                                    placement="right"
+                                    onConfirm={() =>
+                                      handleDeleteDoc(d.docId, c.id)
+                                    }
+                                  >
                                     <span
                                       className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-400 hover:text-red-500 cursor-pointer"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                      }}
                                     >
                                       <DeleteOutlined />
                                     </span>
-                                  </KbTip>
-                                </Popconfirm>
+                                  </Popconfirm>
+                                </KbTip>
                               </div>
                             </div>
                           ))}
