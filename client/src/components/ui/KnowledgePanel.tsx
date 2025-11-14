@@ -9,6 +9,7 @@ import {
   Popconfirm,
   Tooltip,
 } from "antd";
+import type { InputRef } from "antd";
 import type { UploadProps } from "antd";
 import {
   kbListCollectionsByGroup,
@@ -44,6 +45,7 @@ const KnowledgePanel: React.FC = () => {
   // 拖拽悬停反馈：当前悬停的集合ID + 深度计数，避免子元素抖动
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const dragDepthRef = useRef<Record<number, number>>({});
+  const nameInputRef = useRef<InputRef>(null);
 
   const load = async () => {
     try {
@@ -57,6 +59,14 @@ const KnowledgePanel: React.FC = () => {
   useEffect(() => {
     load();
   }, []);
+
+  // 展开创建表单时自动聚焦到输入框
+  useEffect(() => {
+    if (showCreate) {
+      // 等待 Input 挂载后聚焦
+      setTimeout(() => nameInputRef.current?.focus?.(), 0);
+    }
+  }, [showCreate]);
 
   // 监听知识库更新事件，实现跨组件同步
   useEffect(() => {
@@ -288,6 +298,11 @@ const KnowledgePanel: React.FC = () => {
               placeholder="新知识库名称"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onPressEnter={onCreate}
+              maxLength={30}
+              showCount
+              autoFocus
+              ref={nameInputRef}
               allowClear
             />
             <Button
