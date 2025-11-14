@@ -58,6 +58,22 @@ const KnowledgePanel: React.FC = () => {
     load();
   }, []);
 
+  // 监听知识库更新事件，实现跨组件同步
+  useEffect(() => {
+    const handleUpdate = async () => {
+      await load();
+      // 刷新所有已展开知识库的文档列表
+      const expandedIds = Array.from(expanded);
+      for (const id of expandedIds) {
+        await refreshDocs(id);
+      }
+    };
+    window.addEventListener('kb:collections-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('kb:collections-updated', handleUpdate);
+    };
+  }, [expanded]);
+
   // 当窗口失焦、拖拽结束或文档不可见时，重置所有拖拽悬停状态
   useEffect(() => {
     const resetDragState = () => {

@@ -97,6 +97,17 @@ const KbManager: React.FC = () => {
     loadCollections();
   }, []);
 
+  // 监听知识库更新事件，实现跨组件同步
+  useEffect(() => {
+    const handleUpdate = () => {
+      loadCollections();
+    };
+    window.addEventListener('kb:collections-updated', handleUpdate);
+    return () => {
+      window.removeEventListener('kb:collections-updated', handleUpdate);
+    };
+  }, []);
+
   // 当窗口失焦、拖拽结束或文档不可见时，重置管理页内的拖拽悬停状态
   useEffect(() => {
     const resetDragState = () => {
