@@ -130,7 +130,7 @@ router.get('/collections/:id/documents', (req, res) => {
   db.get(check, [id, userId], (err, row) => {
     if (err) return res.status(500).json({ success: false, message: err.message });
     if (!row) return res.status(404).json({ success: false, message: '未找到集合' });
-    const sql = `SELECT d.id as docId, d.filename, d.ext, d.mime, d.size, d.status, d.created_at,
+    const sql = `SELECT d.id as docId, d.filename, d.ext, d.mime, d.size, d.status, d.error, d.created_at,
                         (SELECT COUNT(1) FROM kb_chunks c WHERE c.doc_id = d.id AND c.idx != -1) as chunk_count
                  FROM kb_documents d WHERE d.collection_id=? ORDER BY d.id DESC`;
     db.all(sql, [id], (e, rows) => {
@@ -345,8 +345,14 @@ router.post('/documents/:docId/ingest', async (req, res) => {
           () => resolve()
         );
       });
-      const pct = 40 + Math.round(((i + 1) / Math.max(1, vectors.length)) * 55);
-      await new Promise((resolve) => db.run('UPDATE kb_documents SET progress=? WHERE id=?', [Math.min(95, pct), docId], () => resolve()));
+      
+      // 优化进度更新频率：每 5 个 chunk 或最后一个时更新
+      if (i % 5 === 0 || i === vectors.length - 1) {
+        const pct = 40 + Math.round(((i + 1) / vectors.length) * 55);
+        await new Promise((resolve) => 
+          db.run('UPDATE kb_documents SET progress=? WHERE id=?', [Math.min(95, pct), docId], () => resolve())
+        );
+      }
     }
 
     // 状态更新
@@ -357,8 +363,41 @@ router.post('/documents/:docId/ingest', async (req, res) => {
     res.json({ success: true, chunks: chunkIds.length, dim });
   } catch (e) {
     console.error('入库失败', e);
-    await new Promise((resolve) => db.run('UPDATE kb_documents SET status=?, error=?, progress=? WHERE id=?', ['error', String(e?.message || e), 0, docId], () => resolve()));
-    res.status(500).json({ success: false, message: e?.message || '入库失败' });
+
+    // 错误分类处理
+    let userMessage = '入库失败';
+    let errorType = 'unknown';
+
+    if (e?.message?.includes('batch size is invalid')) {
+      userMessage = '文档过大，批处理失败。请联系管理员优化配置。';
+      errorType = 'batch_size_limit';
+    } else if (e?.message?.includes('批次') && e?.message?.includes('嵌入失败')) {
+      userMessage = `向量嵌入失败: ${e.message}`;
+      errorType = 'embedding_failed';
+    } else if (e?.code === 'ECONNREFUSED' || e?.code === 'ETIMEDOUT') {
+      userMessage = '网络连接失败，请检查网络或稍后重试';
+      errorType = 'network_error';
+    } else if (e?.status === 401 || e?.status === 403) {
+      userMessage = 'API 密钥无效或已过期';
+      errorType = 'auth_error';
+    } else {
+      userMessage = e?.message || '入库失败';
+    }
+
+    await new Promise((resolve) => 
+      db.run(
+        'UPDATE kb_documents SET status=?, error=?, progress=? WHERE id=?', 
+        ['error', userMessage, 0, docId], 
+        () => resolve()
+      )
+    );
+
+    res.status(500).json({ 
+      success: false, 
+      message: userMessage,
+      errorType,
+      details: process.env.NODE_ENV === 'development' ? e?.stack : undefined
+    });
   }
 });
 

@@ -22,6 +22,7 @@ export interface KbDocument {
   mime?: string;
   size?: number;
   status?: string;
+  error?: string;
   created_at?: string;
   chunk_count?: number;
 }
@@ -104,4 +105,14 @@ export async function kbCreateGroup(name: string, description?: string): Promise
 
 export async function kbDeleteGroup(id: number): Promise<void> {
   await axios.delete(`${API_BASE_URL}/api/kb/groups/${id}`);
+}
+
+/**
+ * 重新入库文档（用于失败重试）
+ */
+export async function kbIngestDocument(docId: number): Promise<void> {
+  const resp = await axios.post(`${API_BASE_URL}/api/kb/documents/${docId}/ingest`);
+  if (!resp.data?.success) {
+    throw new Error(resp.data?.message || '入库失败');
+  }
 }

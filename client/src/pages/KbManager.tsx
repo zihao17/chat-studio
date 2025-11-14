@@ -9,6 +9,7 @@ import {
   kbDeleteDocument,
   kbUpdateCollection,
   kbPasteText,
+  kbIngestDocument,
   type KbCollection,
   type KbDocument,
 } from "../utils/kbApi";
@@ -20,6 +21,7 @@ import {
   SnippetsOutlined,
   DeleteOutlined,
   CheckCircleOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 
 const KbManager: React.FC = () => {
@@ -195,6 +197,21 @@ const KbManager: React.FC = () => {
     }
   };
 
+  const handleRetryIngest = async (docId: number, collectionId: number) => {
+    try {
+      setLoading(true);
+      await kbIngestDocument(docId);
+      message.success("已重新开始入库");
+      await refreshDocs(collectionId);
+      window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || "重新入库失败";
+      message.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openRename = (c: KbCollection) => {
     setEditingId(c.id);
     setEditingValue(c.name || "");
@@ -234,11 +251,17 @@ const KbManager: React.FC = () => {
     }
   };
 
-  const statusTag = (s?: string) => {
+  const statusTag = (s?: string, error?: string) => {
     const st = (s || "").toLowerCase();
     if (st === "ready") return <Tag className="kb-tag-compact" color="green">ready</Tag>;
     if (st === "processing") return <Tag className="kb-tag-compact" color="orange">processing</Tag>;
-    if (st === "failed") return <Tag className="kb-tag-compact" color="red">failed</Tag>;
+    if (st === "error" || st === "failed") {
+      return (
+        <Tooltip title={error || "入库失败"} placement="left">
+          <Tag className="kb-tag-compact" color="red">error</Tag>
+        </Tooltip>
+      );
+    }
     return <Tag className="kb-tag-compact">{s || "-"}</Tag>;
   };
 
@@ -423,9 +446,19 @@ const KbManager: React.FC = () => {
                             {/* 块数 */}
                             <div className="text-right text-gray-500 whitespace-nowrap">{typeof d.chunk_count === 'number' ? d.chunk_count : '-'}块</div>
                             {/* 状态 */}
-                            <div className="flex justify-end whitespace-nowrap">{statusTag(d.status)}</div>
+                            <div className="flex justify-end whitespace-nowrap">{statusTag(d.status, d.error)}</div>
                             {/* 操作 */}
-                            <div className="flex justify-end whitespace-nowrap">
+                            <div className="flex justify-end gap-1 whitespace-nowrap">
+                              {d.status === 'error' && (
+                                <KbTip title="重新入库">
+                                  <span 
+                                    className="w-5 h-5 inline-flex items-center justify-center cursor-pointer text-gray-400 hover:text-blue-500"
+                                    onClick={() => handleRetryIngest(d.docId, c.id)}
+                                  >
+                                    <ReloadOutlined />
+                                  </span>
+                                </KbTip>
+                              )}
                               <KbTip title="删除文件">
                                 <Popconfirm
                                   title="删除文件"
