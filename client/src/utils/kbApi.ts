@@ -51,11 +51,14 @@ export async function kbUpdateCollection(id: number, payload: Partial<{ name: st
   await axios.put(`${API_BASE_URL}/api/kb/collections/${id}`, payload);
 }
 
-export async function kbUploadAndIngest(collectionId: number, files: File[], onProgress?: (index: number, percent: number) => void): Promise<void> {
-  if (!files.length) return;
+/**
+ * 仅上传文件，不进行入库（返回文档 ID 列表）
+ */
+export async function kbUploadFiles(collectionId: number, files: File[], onProgress?: (index: number, percent: number) => void): Promise<{ docId: number; filename: string; size: number }[]> {
+  if (!files.length) return [];
   const form = new FormData();
   for (const f of files) form.append("files", f);
-  await axios.post(`${API_BASE_URL}/api/kb/documents/upload?collection_id=${collectionId}`, form, {
+  const resp = await axios.post(`${API_BASE_URL}/api/kb/documents/upload?collection_id=${collectionId}`, form, {
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (e) => {
       if (!onProgress) return;
@@ -64,12 +67,19 @@ export async function kbUploadAndIngest(collectionId: number, files: File[], onP
       const p = total > 0 ? Math.round((loaded / total) * 100) : 0;
       onProgress(0, p);
     },
-  }).then(async (resp) => {
-    const items = resp.data?.items || [];
-    for (const it of items) {
-      await axios.post(`${API_BASE_URL}/api/kb/documents/${it.docId}/ingest`);
-    }
   });
+  return resp.data?.items || [];
+}
+
+/**
+ * 上传文件并自动入库（旧版本，保持兼容性）
+ */
+export async function kbUploadAndIngest(collectionId: number, files: File[], onProgress?: (index: number, percent: number) => void): Promise<void> {
+  const items = await kbUploadFiles(collectionId, files, onProgress);
+  // 逐个入库
+  for (const it of items) {
+    await axios.post(`${API_BASE_URL}/api/kb/documents/${it.docId}/ingest`);
+  }
 }
 
 export async function kbListDocuments(collectionId: number): Promise<KbDocument[]> {

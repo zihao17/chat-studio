@@ -4,7 +4,7 @@ import type { UploadProps } from "antd";
 import {
   kbListCollections,
   kbListDocuments,
-  kbUploadAndIngest,
+  kbUploadFiles,
   kbDeleteCollection,
   kbDeleteDocument,
   kbUpdateCollection,
@@ -144,13 +144,28 @@ const KbManager: React.FC = () => {
     beforeUpload: async (file) => {
       try {
         setLoading(true);
-        await kbUploadAndIngest(collectionId, [file as unknown as File]);
-        message.success(`${file.name} 入库完成`);
+        // 1. 先上传文件（不入库），立即显示文件信息
+        const items = await kbUploadFiles(collectionId, [file as unknown as File]);
         await refreshDocs(collectionId);
-        window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+        
+        // 2. 异步入库
+        if (items.length > 0) {
+          const docId = items[0].docId;
+          kbIngestDocument(docId)
+            .then(async () => {
+              message.success(`${file.name} 入库完成`);
+              await refreshDocs(collectionId);
+              window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+            })
+            .catch(async (e: any) => {
+              message.error(e?.message || `${file.name} 入库失败`);
+              await refreshDocs(collectionId);
+            });
+        }
         return Upload.LIST_IGNORE;
       } catch (e: any) {
-        message.error(e?.message || `${file.name} 入库失败`);
+        message.error(e?.message || `${file.name} 上传失败`);
+        await refreshDocs(collectionId);
         return Upload.LIST_IGNORE;
       } finally {
         setLoading(false);
@@ -163,12 +178,26 @@ const KbManager: React.FC = () => {
     if (!files.length) return;
     try {
       setLoading(true);
-      await kbUploadAndIngest(collectionId, files);
-      message.success(`已入库 ${files.length} 个文件`);
+      // 1. 先上传文件（不入库），立即显示文件信息
+      const items = await kbUploadFiles(collectionId, files);
       await refreshDocs(collectionId);
-      window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+      
+      // 2. 异步入库所有文件
+      if (items.length > 0) {
+        Promise.all(items.map(it => kbIngestDocument(it.docId)))
+          .then(async () => {
+            message.success(`已入库 ${files.length} 个文件`);
+            await refreshDocs(collectionId);
+            window.dispatchEvent(new CustomEvent('kb:collections-updated'));
+          })
+          .catch(async (e: any) => {
+            message.error(e?.message || "部分文件入库失败");
+            await refreshDocs(collectionId);
+          });
+      }
     } catch (e: any) {
-      message.error(e?.message || "入库失败");
+      message.error(e?.message || "上传失败");
+      await refreshDocs(collectionId);
     } finally {
       setLoading(false);
     }
@@ -253,12 +282,13 @@ const KbManager: React.FC = () => {
 
   const statusTag = (s?: string, error?: string) => {
     const st = (s || "").toLowerCase();
-    if (st === "ready") return <Tag className="kb-tag-compact" color="green">ready</Tag>;
-    if (st === "processing") return <Tag className="kb-tag-compact" color="orange">processing</Tag>;
+    if (st === "ready") return <Tag className="kb-tag-compact" color="green">就绪</Tag>;
+    if (st === "processing") return <Tag className="kb-tag-compact" color="orange">处理中</Tag>;
+    if (st === "uploaded") return <Tag className="kb-tag-compact" color="blue">解析中</Tag>;
     if (st === "error" || st === "failed") {
       return (
         <Tooltip title={error || "入库失败"} placement="left">
-          <Tag className="kb-tag-compact" color="red">error</Tag>
+          <Tag className="kb-tag-compact" color="red">失败</Tag>
         </Tooltip>
       );
     }
@@ -444,7 +474,7 @@ const KbManager: React.FC = () => {
                             {/* 文件大小 */}
                             <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">{formatSize(d.size)}</div>
                             {/* 块数 */}
-                            <div className="text-right text-gray-500 whitespace-nowrap">{typeof d.chunk_count === 'number' ? d.chunk_count : '-'}块</div>
+                            <div className="text-right text-gray-500 whitespace-nowrap">{typeof d.chunk_count === 'number' ? `${d.chunk_count}块` : '0块'}</div>
                             {/* 状态 */}
                             <div className="flex justify-end whitespace-nowrap">{statusTag(d.status, d.error)}</div>
                             {/* 操作 */}

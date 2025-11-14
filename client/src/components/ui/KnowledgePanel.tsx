@@ -14,7 +14,8 @@ import type { UploadProps } from "antd";
 import {
   kbListCollectionsByGroup,
   kbCreateCollection,
-  kbUploadAndIngest,
+  kbUploadFiles,
+  kbIngestDocument,
   kbListDocuments,
   kbDeleteCollection,
   kbDeleteDocument,
@@ -26,6 +27,9 @@ import {
   CheckCircleOutlined,
   PlusCircleOutlined,
   SettingOutlined,
+  LoadingOutlined,
+  CheckOutlined,
+  CloseCircleOutlined,
 } from "@ant-design/icons";
 
 const KnowledgePanel: React.FC = () => {
@@ -142,13 +146,28 @@ const KnowledgePanel: React.FC = () => {
     beforeUpload: async (file) => {
       try {
         setLoading(true);
-        await kbUploadAndIngest(collectionId, [file as unknown as File]);
-        message.success(`${file.name} 入库完成`);
-        window.dispatchEvent(new CustomEvent("kb:collections-updated"));
+        // 1. 先上传文件（不入库），立即显示文件信息
+        const items = await kbUploadFiles(collectionId, [file as unknown as File]);
         await refreshDocs(collectionId);
+        
+        // 2. 异步入库（不阻塞 UI）
+        if (items.length > 0) {
+          const docId = items[0].docId;
+          kbIngestDocument(docId)
+            .then(async () => {
+              message.success(`${file.name} 入库完成`);
+              await refreshDocs(collectionId);
+              window.dispatchEvent(new CustomEvent("kb:collections-updated"));
+            })
+            .catch(async (e: any) => {
+              message.error(e?.message || `${file.name} 入库失败`);
+              await refreshDocs(collectionId);
+            });
+        }
         return Upload.LIST_IGNORE;
       } catch (e: any) {
-        message.error(e?.message || `${file.name} 入库失败`);
+        message.error(e?.message || `${file.name} 上传失败`);
+        await refreshDocs(collectionId);
         return Upload.LIST_IGNORE;
       } finally {
         setLoading(false);
@@ -237,12 +256,26 @@ const KnowledgePanel: React.FC = () => {
     if (!files.length) return;
     try {
       setLoading(true);
-      await kbUploadAndIngest(collectionId, files);
+      // 1. 先上传文件（不入库），立即显示文件信息
+      const items = await kbUploadFiles(collectionId, files);
       await refreshDocs(collectionId);
-      message.success(`已入库 ${files.length} 个文件`);
-      window.dispatchEvent(new CustomEvent("kb:collections-updated"));
+      
+      // 2. 异步入库所有文件
+      if (items.length > 0) {
+        Promise.all(items.map(it => kbIngestDocument(it.docId)))
+          .then(async () => {
+            message.success(`已入库 ${files.length} 个文件`);
+            await refreshDocs(collectionId);
+            window.dispatchEvent(new CustomEvent("kb:collections-updated"));
+          })
+          .catch(async (e: any) => {
+            message.error(e?.message || "部分文件入库失败");
+            await refreshDocs(collectionId);
+          });
+      }
     } catch (e: any) {
-      message.error(e?.message || "入库失败");
+      message.error(e?.message || "上传失败");
+      await refreshDocs(collectionId);
     } finally {
       setLoading(false);
     }
@@ -473,48 +506,69 @@ const KnowledgePanel: React.FC = () => {
                         </div>
                       ) : (
                         <div className="space-y-1 no-scrollbar">
-                          {docs.map((d) => (
-                            <div
-                              key={d.docId}
-                              className="grid grid-cols-[1fr_auto_min-content] items-center text-xs text-foreground border-b border-surface py-1 gap-2"
-                            >
-                              {/* 文件名：左侧占满，超出省略 */}
-                              <div className="min-w-0">
-                                <span
-                                  className="truncate text-gray-400"
-                                  title={d.filename}
-                                >
-                                  {d.filename}
-                                </span>
-                              </div>
-                              {/* 文件大小：固定宽度，右对齐，等宽数字 */}
-                              <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">
-                                {formatSize(d.size)}
-                              </div>
-                              {/* 操作图标：固定宽度靠右 */}
-                              <div className="flex items-center justify-end whitespace-nowrap">
-                                <KbTip title="删除文件">
-                                  <Popconfirm
-                                    title="删除文件"
-                                    description="确认删除该文件？"
-                                    okText="删除"
-                                    cancelText="取消"
-                                    okButtonProps={{ danger: true }}
-                                    placement="right"
-                                    onConfirm={() =>
-                                      handleDeleteDoc(d.docId, c.id)
-                                    }
+                          {docs.map((d) => {
+                            const status = (d.status || "").toLowerCase();
+                            const isProcessing = status === "uploaded" || status === "processing";
+                            const isReady = status === "ready";
+                            const isError = status === "error" || status === "failed";
+                            
+                            return (
+                              <div
+                                key={d.docId}
+                                className="grid grid-cols-[auto_1fr_auto_min-content] items-center text-xs text-foreground border-b border-surface py-1 gap-2"
+                              >
+                                {/* 状态图标 */}
+                                <div className="flex items-center justify-center w-4">
+                                  {isProcessing && (
+                                    <LoadingOutlined className="text-blue-500 animate-spin" />
+                                  )}
+                                  {isReady && (
+                                    <CheckOutlined className="text-green-500" />
+                                  )}
+                                  {isError && (
+                                    <KbTip title={d.error || "入库失败"}>
+                                      <CloseCircleOutlined className="text-red-500" />
+                                    </KbTip>
+                                  )}
+                                </div>
+                                {/* 文件名：左侧占满，超出省略 */}
+                                <div className="min-w-0">
+                                  <span
+                                    className="truncate text-gray-400"
+                                    title={d.filename}
                                   >
-                                    <span
-                                      className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-400 hover:text-red-500 cursor-pointer"
+                                    {d.filename}
+                                  </span>
+                                </div>
+                                {/* 文件大小：固定宽度，右对齐，等宽数字 */}
+                                <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">
+                                  {formatSize(d.size)}
+                                </div>
+                                {/* 操作图标：固定宽度靠右 */}
+                                <div className="flex items-center justify-end whitespace-nowrap">
+                                  <KbTip title="删除文件">
+                                    <Popconfirm
+                                      title="删除文件"
+                                      description="确认删除该文件？"
+                                      okText="删除"
+                                      cancelText="取消"
+                                      okButtonProps={{ danger: true }}
+                                      placement="right"
+                                      onConfirm={() =>
+                                        handleDeleteDoc(d.docId, c.id)
+                                      }
                                     >
-                                      <DeleteOutlined />
-                                    </span>
-                                  </Popconfirm>
-                                </KbTip>
+                                      <span
+                                        className="inline-flex items-center justify-center w-5 h-5 leading-none text-[16px] align-middle text-gray-400 hover:text-red-500 cursor-pointer"
+                                      >
+                                        <DeleteOutlined />
+                                      </span>
+                                    </Popconfirm>
+                                  </KbTip>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
