@@ -30,7 +30,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ open, onClose }) => {
             </div>
             <div>
               <span className="font-medium">亮点：</span>
-              多模型切换、会话管理、亮暗主题、Markdown/代码高亮、可调参数。
+              多模型支持（Qwen/GPT/DeepSeek/GLM）、流式输出、智能滚动、会话管理、云端同步、文件上传解析、知识库 RAG（混合检索+智能重排+引用溯源）、代码块增强、高级参数调节、亮暗主题、响应式设计。
             </div>
           </div>
         </div>
