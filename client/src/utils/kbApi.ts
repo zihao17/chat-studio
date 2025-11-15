@@ -87,11 +87,40 @@ export async function kbListDocuments(collectionId: number): Promise<KbDocument[
   return resp.data?.items || [];
 }
 
-export interface KbSearchItem { chunkId: number; docId: number; content: string; score: number; rerankScore: number; }
+export interface KbSearchItem { 
+  chunkId: number; 
+  docId: number; 
+  docName: string;
+  idx: number;
+  content: string; 
+  score: number; 
+  rerankScore: number; 
+}
 
 export async function kbSearch(collectionId: number, query: string, topK = 10): Promise<KbSearchItem[]> {
   const resp = await axios.post(`${API_BASE_URL}/api/kb/search`, { collection_id: collectionId, query, top_k: topK });
   return resp.data?.items || [];
+}
+
+export interface KbChunk {
+  chunkId: number;
+  docId: number;
+  docName: string;
+  idx: number;
+  content: string;
+  tokens: number;
+  ext?: string;
+  mime?: string;
+}
+
+export async function kbGetChunk(chunkId: number): Promise<KbChunk> {
+  const resp = await axios.get(`${API_BASE_URL}/api/kb/chunks/${chunkId}`);
+  return resp.data?.item;
+}
+
+export async function kbGetDocumentProgress(docId: number): Promise<{ docId: number; filename: string; status: string; progress: number; error?: string }> {
+  const resp = await axios.get(`${API_BASE_URL}/api/kb/documents/${docId}`);
+  return resp.data?.item;
 }
 
 export async function kbDeleteDocument(docId: number): Promise<void> {

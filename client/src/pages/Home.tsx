@@ -10,6 +10,7 @@ import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import ChatInputPanel from "../components/ui/ChatInputPanel";
 import type { ChatInputPanelRef } from "../components/ui/ChatInputPanel";
 import DropOverlay from "../components/ui/DropOverlay";
+import CitationCard from "../components/ui/CitationCard";
 import { uploadFiles, validateLocalFiles } from "../utils/fileApi";
 
 /**
@@ -558,13 +559,7 @@ const Home: React.FC = () => {
                             {Array.isArray((message as any).stats?.citations) && (message as any).stats.citations.length > 0 && (
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {(message as any).stats.citations.map((c: any, i: number) => (
-                                  <span
-                                    key={i}
-                                    className="text-xs px-2 py-1 rounded-full border border-surface bg-[var(--surface)] text-foreground hover:bg-[var(--surface-hover)] cursor-default"
-                                    title={`${c.title || ('doc-'+c.docId)} | #${c.idx}\n${c.preview || ''}`}
-                                  >
-                                    引用 {i + 1} · {(c.title || ('doc-'+c.docId))}
-                                  </span>
+                                  <CitationCard key={i} citation={c} index={i} />
                                 ))}
                               </div>
                             )}

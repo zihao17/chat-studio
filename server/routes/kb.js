@@ -447,19 +447,64 @@ router.post('/search', async (req, res) => {
       reranked = candidates.map((c, i) => ({ index: i, score: c.hybrid }));
     }
 
-    // 组装最终返回
+    // 组装最终返回（增加文档名）
     const idSet = new Set(reranked.map((r) => candidates[r.index].chunk_id));
     const items = candidates
       .map((h, i) => ({ ...h, rerankScore: reranked.find((r) => r.index === i)?.score || null, i }))
       .filter((x) => idSet.has(x.chunk_id))
       .sort((a, b) => (b.rerankScore ?? 0) - (a.rerankScore ?? 0))
-      .slice(0, top_k)
-      .map((x) => ({ chunkId: x.chunk_id, docId: x.doc_id, content: x.content, score: x.hybrid, rerankScore: x.rerankScore }));
-    res.json({ success: true, items });
+      .slice(0, top_k);
+    
+    // 批量查询文档名
+    const docIds = [...new Set(items.map(x => x.doc_id))];
+    const docNames = await new Promise((resolve, reject) => {
+      if (!docIds.length) return resolve({});
+      const placeholders = docIds.map(() => '?').join(',');
+      const db = getDatabase();
+      db.all(`SELECT id, filename FROM kb_documents WHERE id IN (${placeholders})`, docIds, (err, rows) => {
+        if (err) return reject(err);
+        const map = {};
+        (rows || []).forEach(r => { map[r.id] = fixGarbledUtf8(r.filename); });
+        resolve(map);
+      });
+    });
+
+    const result = items.map((x) => ({ 
+      chunkId: x.chunk_id, 
+      docId: x.doc_id, 
+      docName: docNames[x.doc_id] || `doc-${x.doc_id}`,
+      idx: x.idx,
+      content: x.content, 
+      score: x.hybrid, 
+      rerankScore: x.rerankScore 
+    }));
+    res.json({ success: true, items: result });
   } catch (e) {
     console.error('搜索失败', e);
     res.status(500).json({ success: false, message: e?.message || '搜索失败' });
   }
+});
+
+// 获取单个chunk详情（用于引用卡片展开）
+router.get('/chunks/:chunkId', (req, res) => {
+  const db = getDatabase();
+  const chunkId = parseInt(req.params.chunkId, 10);
+  if (!chunkId) return res.status(400).json({ success: false, message: '缺少 chunkId' });
+  
+  const sql = `SELECT c.id as chunkId, c.doc_id as docId, c.idx, c.content, c.tokens,
+                      d.filename as docName, d.ext, d.mime
+               FROM kb_chunks c
+               LEFT JOIN kb_documents d ON c.doc_id = d.id
+               WHERE c.id = ?`;
+  
+  db.get(sql, [chunkId], (err, row) => {
+    if (err) return res.status(500).json({ success: false, message: err.message });
+    if (!row) return res.status(404).json({ success: false, message: '未找到chunk' });
+    
+    // 修复文档名乱码
+    const item = { ...row, docName: fixGarbledUtf8(row.docName) };
+    res.json({ success: true, item });
+  });
 });
 
 module.exports = router;
