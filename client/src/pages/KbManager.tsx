@@ -203,6 +203,11 @@ const KbManager: React.FC = () => {
     showUploadList: false,
     beforeUpload: async (file) => {
       try {
+        // 前置校验：空文件直接忽略并提示
+        if ((file as any)?.size === 0) {
+          message.warning('空文件不允许入库');
+          return Upload.LIST_IGNORE;
+        }
         setLoading(true);
         // 1. 先上传文件（不入库），立即显示文件信息
         const items = await kbUploadFiles(collectionId, [file as unknown as File]);
@@ -227,7 +232,8 @@ const KbManager: React.FC = () => {
         }
         return Upload.LIST_IGNORE;
       } catch (e: any) {
-        message.error(e?.message || `${file.name} 上传失败`);
+        const msg = e?.response?.data?.message || e?.message || `${file.name} 上传失败`;
+        message.error(msg);
         await refreshDocs(collectionId);
         return Upload.LIST_IGNORE;
       } finally {
@@ -239,10 +245,17 @@ const KbManager: React.FC = () => {
   // 支持拖放至卡片直接入库
   const onDropUpload = async (collectionId: number, files: File[]) => {
     if (!files.length) return;
+    // 过滤空文件并给出提示
+    const valid = files.filter((f) => (f as any).size > 0);
+    const droppedEmptyCount = files.length - valid.length;
+    if (droppedEmptyCount > 0) {
+      message.warning(`已忽略 ${droppedEmptyCount} 个空文件`);
+    }
+    if (!valid.length) return;
     try {
       setLoading(true);
       // 1. 先上传文件（不入库），立即显示文件信息
-      const items = await kbUploadFiles(collectionId, files);
+      const items = await kbUploadFiles(collectionId, valid);
       await refreshDocs(collectionId);
       
       // 2. 异步入库所有文件并启动进度轮询
@@ -262,7 +275,8 @@ const KbManager: React.FC = () => {
           });
       }
     } catch (e: any) {
-      message.error(e?.message || "上传失败");
+      const msg = e?.response?.data?.message || e?.message || "上传失败";
+      message.error(msg);
       await refreshDocs(collectionId);
     } finally {
       setLoading(false);

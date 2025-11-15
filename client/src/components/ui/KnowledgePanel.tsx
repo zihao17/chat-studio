@@ -145,6 +145,11 @@ const KnowledgePanel: React.FC = () => {
     multiple: true,
     beforeUpload: async (file) => {
       try {
+        // 前置校验：空文件直接忽略并提示
+        if ((file as any)?.size === 0) {
+          message.warning('空文件不允许入库');
+          return Upload.LIST_IGNORE;
+        }
         setLoading(true);
         // 1. 先上传文件（不入库），立即显示文件信息
         const items = await kbUploadFiles(collectionId, [file as unknown as File]);
@@ -160,13 +165,15 @@ const KnowledgePanel: React.FC = () => {
               window.dispatchEvent(new CustomEvent("kb:collections-updated"));
             })
             .catch(async (e: any) => {
-              message.error(e?.message || `${file.name} 入库失败`);
+              const msg = e?.response?.data?.message || e?.message || `${file.name} 入库失败`;
+              message.error(msg);
               await refreshDocs(collectionId);
             });
         }
         return Upload.LIST_IGNORE;
       } catch (e: any) {
-        message.error(e?.message || `${file.name} 上传失败`);
+        const msg = e?.response?.data?.message || e?.message || `${file.name} 上传失败`;
+        message.error(msg);
         await refreshDocs(collectionId);
         return Upload.LIST_IGNORE;
       } finally {
@@ -254,27 +261,36 @@ const KnowledgePanel: React.FC = () => {
 
   const onDropUpload = async (collectionId: number, files: File[]) => {
     if (!files.length) return;
+    // 过滤空文件并给出提示
+    const valid = files.filter((f) => (f as any).size > 0);
+    const droppedEmptyCount = files.length - valid.length;
+    if (droppedEmptyCount > 0) {
+      message.warning(`已忽略 ${droppedEmptyCount} 个空文件`);
+    }
+    if (!valid.length) return;
     try {
       setLoading(true);
       // 1. 先上传文件（不入库），立即显示文件信息
-      const items = await kbUploadFiles(collectionId, files);
+      const items = await kbUploadFiles(collectionId, valid);
       await refreshDocs(collectionId);
       
       // 2. 异步入库所有文件
       if (items.length > 0) {
         Promise.all(items.map(it => kbIngestDocument(it.docId)))
           .then(async () => {
-            message.success(`已入库 ${files.length} 个文件`);
+            message.success(`已入库 ${valid.length} 个文件`);
             await refreshDocs(collectionId);
             window.dispatchEvent(new CustomEvent("kb:collections-updated"));
           })
           .catch(async (e: any) => {
-            message.error(e?.message || "部分文件入库失败");
+            const msg = e?.response?.data?.message || e?.message || "部分文件入库失败";
+            message.error(msg);
             await refreshDocs(collectionId);
           });
       }
     } catch (e: any) {
-      message.error(e?.message || "上传失败");
+      const msg = e?.response?.data?.message || e?.message || "上传失败";
+      message.error(msg);
       await refreshDocs(collectionId);
     } finally {
       setLoading(false);

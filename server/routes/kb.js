@@ -233,6 +233,7 @@ router.post('/documents/upload', upload.array('files'), async (req, res) => {
     if (!files.length) return res.status(400).json({ success: false, message: '未收到文件' });
 
     const inserted = [];
+    const skipped = [];
     for (const f of files) {
       const sha = crypto.createHash('sha256').update(f.buffer).digest('hex');
       // 解析文本 + 文件名解码
@@ -241,6 +242,13 @@ router.post('/documents/upload', upload.array('files'), async (req, res) => {
       const mime = f.mimetype || '';
       const size = f.size || 0;
       const { text } = await extractText({ buffer: f.buffer, mime, ext });
+      const isEmpty = !text || text.replace(/\s/g, '').length === 0;
+
+      // 空文档或无法解析内容：跳过，不登记
+      if (isEmpty) {
+        skipped.push({ filename, size, reason: '空文档或无法解析内容，已跳过' });
+        continue;
+      }
 
       // 文档表
       const docSql = `INSERT INTO kb_documents(collection_id, filename, ext, mime, size, sha256, status)
@@ -261,7 +269,10 @@ router.post('/documents/upload', upload.array('files'), async (req, res) => {
       });
     }
 
-    res.json({ success: true, items: inserted });
+    if (inserted.length === 0) {
+      return res.status(400).json({ success: false, message: '全部文件为空或无法解析，已跳过', skipped });
+    }
+    res.json({ success: true, items: inserted, skipped });
   } catch (e) {
     console.error('上传失败', e);
     res.status(500).json({ success: false, message: e?.message || '上传失败' });
@@ -315,7 +326,13 @@ router.post('/documents/:docId/ingest', async (req, res) => {
     const raw = await new Promise((resolve, reject) => {
       db.get('SELECT content FROM kb_chunks WHERE doc_id=? AND idx=-1', [docId], (err, row) => (err ? reject(err) : resolve(row?.content || '')));
     });
-    if (!raw) return res.status(400).json({ success: false, message: '未找到原文内容，请先上传解析' });
+    // 空文档严禁入库：立即标记为错误并返回
+    if (!raw || String(raw).replace(/\s/g, '').length === 0) {
+      await new Promise((resolve) => 
+        db.run('UPDATE kb_documents SET status=?, error=?, progress=? WHERE id=?', ['error', '空文档，无法入库', 0, docId], () => resolve())
+      );
+      return res.status(400).json({ success: false, message: '空文档，无法入库' });
+    }
 
     // 切分
     const pieces = chunkText(raw, { targetChars: 3200, overlapChars: 600 });
