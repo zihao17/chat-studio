@@ -652,6 +652,9 @@ export const useChatSessions = () => {
   const handleNewChat = useCallback(() => {
     console.log("🔄 触发新对话逻辑");
     
+    // 如果知识库管理页面打开，先关闭它
+    window.dispatchEvent(new CustomEvent('kb:close-manager'));
+    
     // 检查当前最新会话是否为空
     if (sessions.length > 0) {
       const latestSession = sessions.sort(

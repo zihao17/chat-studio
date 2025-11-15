@@ -558,9 +558,11 @@ const Home: React.FC = () => {
                             </div>
                             {Array.isArray((message as any).stats?.citations) && (message as any).stats.citations.length > 0 && (
                               <div className="flex flex-wrap gap-2 mt-1">
-                                {(message as any).stats.citations.map((c: any, i: number) => (
-                                  <CitationCard key={i} citation={c} index={i} />
-                                ))}
+                                {(message as any).stats.citations
+                                  .filter((c: any) => typeof c.score === 'number' && c.score > 0.8)
+                                  .map((c: any, i: number) => (
+                                    <CitationCard key={i} citation={c} index={i} />
+                                  ))}
                               </div>
                             )}
                           </div>
