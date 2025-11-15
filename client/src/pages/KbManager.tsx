@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { App as AntdApp, Button, Empty, Input, Modal, Popconfirm, Tag, Upload, Tooltip, Progress, Table } from "antd";
+import { App as AntdApp, Button, Empty, Input, Modal, Popconfirm, Tag, Upload, Tooltip, Table } from "antd";
 import type { UploadProps } from "antd";
 import {
   kbListCollections,
