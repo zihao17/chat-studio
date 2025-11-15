@@ -568,8 +568,8 @@ const KbManager: React.FC = () => {
                             key={d.docId}
                             className="grid grid-cols-[1fr_auto_auto_min-content_min-content] items-center text-xs border-b border-surface py-1 gap-2"
                           >
-                            {/* 文件名 */}
-                            <div className="min-w-0"><span className="truncate" title={d.filename}>{d.filename}</span></div>
+                            {/* 文件名（基于显示宽度截断） */}
+                            <div className="min-w-0"><span className="block truncate max-w-[15rem]" title={d.filename}>{d.filename}</span></div>
                             {/* 文件大小 */}
                             <div className="text-right tabular-nums text-gray-500 whitespace-nowrap">{formatSize(d.size)}</div>
                             {/* 块数 */}

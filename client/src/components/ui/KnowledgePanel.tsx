@@ -531,10 +531,10 @@ const KnowledgePanel: React.FC = () => {
                                     </KbTip>
                                   )}
                                 </div>
-                                {/* 文件名：左侧占满，超出省略 */}
+                                {/* 文件名：左侧占满，超出省略（基于显示宽度） */}
                                 <div className="min-w-0">
                                   <span
-                                    className="truncate text-gray-400"
+                                    className="block truncate text-gray-400 max-w-[6rem]"
                                     title={d.filename}
                                   >
                                     {d.filename}
