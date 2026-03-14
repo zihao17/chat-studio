@@ -307,15 +307,6 @@ function initializeTables(db) {
         });
       });
 
-      // 创建索引
-      createIndexes.forEach((indexSql, index) => {
-        db.run(indexSql, (err) => {
-          if (err) {
-            console.error(`❌ 创建索引 ${index + 1} 失败:`, err.message);
-          }
-        });
-      });
-
       // 迁移：为 kb_collections 增加 group_id；为 kb_documents 增加 progress/error 字段（如果缺失）
       const ensureColumn = (table, column, type, callback) => {
         db.all(`PRAGMA table_info(${table})`, (err, rows) => {
@@ -332,9 +323,21 @@ function initializeTables(db) {
           if (err2) console.warn('⚠️ 为 kb_documents 添加 progress 失败/可能已存在:', err2.message);
           ensureColumn('kb_documents', 'error', 'TEXT', (err3) => {
             if (err3) console.warn('⚠️ 为 kb_documents 添加 error 失败/可能已存在:', err3.message);
-            console.log("✅ 数据库表结构初始化完成");
-            console.log("📚 知识库表已就绪");
-            resolve();
+            
+            db.serialize(() => {
+              // 创建索引
+              createIndexes.forEach((indexSql, index) => {
+                db.run(indexSql, (err) => {
+                  if (err) {
+                    console.error(`❌ 创建索引 ${index + 1} 失败:`, err.message);
+                  }
+                });
+              });
+              
+              console.log("✅ 数据库表结构初始化完成");
+              console.log("📚 知识库表已就绪");
+              resolve();
+            });
           });
         });
       });
