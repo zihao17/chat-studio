@@ -56,7 +56,8 @@ const KnowledgePanel: React.FC = () => {
       const items = await kbListCollectionsByGroup();
       setList(items);
     } catch (e: any) {
-      message.error(e?.message || "加载知识库失败");
+      const is401 = e?.response?.status === 401 || e?.status === 401;
+      message.error(is401 ? "请登录后使用知识库" : (e?.message || "加载知识库失败"));
     }
   };
 

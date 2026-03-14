@@ -89,7 +89,8 @@ const KbManager: React.FC = () => {
       for (const [k, v] of entries) next[k] = v;
       setDocsMap(next);
     } catch (e: any) {
-      message.error(e?.message || "加载知识库失败");
+      const is401 = e?.response?.status === 401 || e?.status === 401;
+      message.error(is401 ? "请登录后使用知识库" : (e?.message || "加载知识库失败"));
     } finally {
       setLoading(false);
     }
