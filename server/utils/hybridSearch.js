@@ -53,17 +53,27 @@ function fetchChunks(chunkIds) {
  */
 async function vectorSearch({ collectionId, query, candidateLimit = 1000 }) {
   const db = getDatabase();
-  // 预筛：取最近 N 条 chunk（规模可控）。
-  const sql = `SELECT id AS chunk_id, doc_id, collection_id, idx, content
-               FROM kb_chunks WHERE collection_id=? AND idx!=-1
-               ORDER BY id DESC LIMIT ?`;
+  
+  // 从 kb_embeddings 读取已存向量（而不是重新计算）
+  const sql = `SELECT e.chunk_id, e.vector, e.dim, c.doc_id, c.idx, c.content
+               FROM kb_embeddings e
+               JOIN kb_chunks c ON e.chunk_id = c.id
+               WHERE e.collection_id = ? AND c.idx != -1
+               ORDER BY c.id DESC LIMIT ?`;
+               
   const rows = await new Promise((resolve, reject) => {
     db.all(sql, [collectionId, candidateLimit], (err, rs) => (err ? reject(err) : resolve(rs || [])));
   });
-  const texts = rows.map((r) => r.content);
+
+  // 只嵌入 query（1次 API 调用）
   const [qv] = await embedBatch([query]);
-  const dvs = await embedBatch(texts);
-  const scored = rows.map((r, i) => ({ ...r, cos: cosine(qv, dvs[i]) }));
+
+  const scored = rows.map((r) => {
+    // 兼容可能存在的 buffer offset
+    const buf = r.vector;
+    const storedVec = Array.from(new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4));
+    return { ...r, cos: cosine(qv, storedVec) };
+  });
   scored.sort((a, b) => b.cos - a.cos);
   return scored.slice(0, 200); // 向量候选上限
 }
