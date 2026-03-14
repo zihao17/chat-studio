@@ -26,6 +26,15 @@ export const useChatSessions = () => {
   const [temperature, setTemperature] = useState<number>(0.7);
   const [topP, setTopP] = useState<number>(0.9);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
+
+  const temperatureRef = useRef(temperature);
+  const topPRef = useRef(topP);
+  const systemPromptRef = useRef(systemPrompt);
+
+  useEffect(() => { temperatureRef.current = temperature; }, [temperature]);
+  useEffect(() => { topPRef.current = topP; }, [topP]);
+  useEffect(() => { systemPromptRef.current = systemPrompt; }, [systemPrompt]);
+
   // RAG：知识库开关与当前集合
   const [kbEnabled, setKbEnabled] = useState<boolean>(false);
   const [kbCollectionId, setKbCollectionId] = useState<number | undefined>(undefined);
@@ -577,10 +586,10 @@ export const useChatSessions = () => {
           },
           currentModel, // 使用当前选中的模型
           {
-            temperature,
-            top_p: topP,
+            temperature: temperatureRef.current,
+            top_p: topPRef.current,
             abortController,
-            user_system_prompt: systemPrompt,
+            user_system_prompt: systemPromptRef.current,
             kb_enabled: kbEnabled,
             kb_collection_id: kbCollectionId,
             kb_top_k: 6,

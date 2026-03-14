@@ -113,7 +113,7 @@ export const DEFAULT_SYSTEM_PROMPT_PLACEHOLDER =
 
 // 生成唯一ID的工具函数
 export const generateId = (): string => {
-  return Date.now().toString();
+  return crypto.randomUUID();
 };
 
 // 生成消息ID的工具函数
