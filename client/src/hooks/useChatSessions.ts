@@ -26,9 +26,22 @@ export const useChatSessions = () => {
   const [temperature, setTemperature] = useState<number>(0.7);
   const [topP, setTopP] = useState<number>(0.9);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
+
+  const temperatureRef = useRef(temperature);
+  const topPRef = useRef(topP);
+  const systemPromptRef = useRef(systemPrompt);
+
+  useEffect(() => { temperatureRef.current = temperature; }, [temperature]);
+  useEffect(() => { topPRef.current = topP; }, [topP]);
+  useEffect(() => { systemPromptRef.current = systemPrompt; }, [systemPrompt]);
+
   // RAG：知识库开关与当前集合
   const [kbEnabled, setKbEnabled] = useState<boolean>(false);
   const [kbCollectionId, setKbCollectionId] = useState<number | undefined>(undefined);
+  const kbEnabledRef = useRef(kbEnabled);
+  const kbCollectionIdRef = useRef(kbCollectionId);
+  useEffect(() => { kbEnabledRef.current = kbEnabled; }, [kbEnabled]);
+  useEffect(() => { kbCollectionIdRef.current = kbCollectionId; }, [kbCollectionId]);
   // 存储每个会话的AbortController，用于中断流式响应
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // 标记是否已经进行过登录后的数据同步
@@ -577,12 +590,12 @@ export const useChatSessions = () => {
           },
           currentModel, // 使用当前选中的模型
           {
-            temperature,
-            top_p: topP,
+            temperature: temperatureRef.current,
+            top_p: topPRef.current,
             abortController,
-            user_system_prompt: systemPrompt,
-            kb_enabled: kbEnabled,
-            kb_collection_id: kbCollectionId,
+            user_system_prompt: systemPromptRef.current,
+            kb_enabled: kbEnabledRef.current,
+            kb_collection_id: kbCollectionIdRef.current,
             kb_top_k: 6,
           }
         );
