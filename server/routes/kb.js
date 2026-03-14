@@ -12,13 +12,38 @@ const { extractText } = require('../utils/fileParser');
 const { chunkText } = require('../utils/chunker');
 const { embedBatch } = require('../utils/embedding');
 const { hybridSearch, fetchChunks } = require('../utils/hybridSearch');
+const { authenticateToken } = require('./auth');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 10 } });
 
+// 对所有 kb 路由套上鉴权中间件
+router.use(authenticateToken);
+
 function getUserId(req) {
-  // MVP：若有鉴权可从 req.user.id 取；暂用 1
-  return (req.user && req.user.id) || 1;
+  // 中间件保证已有 user
+  return req.user.userId || req.user.id;
+}
+
+function dbGet(db, sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row || null)));
+  });
+}
+
+async function getOwnedCollection(db, collectionId, userId) {
+  return dbGet(db, 'SELECT id, user_id FROM kb_collections WHERE id=? AND user_id=?', [collectionId, userId]);
+}
+
+async function getOwnedDocument(db, docId, userId) {
+  return dbGet(
+    db,
+    `SELECT d.id, d.collection_id, c.user_id
+     FROM kb_documents d
+     JOIN kb_collections c ON d.collection_id = c.id
+     WHERE d.id=? AND c.user_id=?`,
+    [docId, userId]
+  );
 }
 
 /**
@@ -227,8 +252,11 @@ router.delete('/groups/:id', (req, res) => {
 router.post('/documents/upload', upload.array('files'), async (req, res) => {
   try {
     const db = getDatabase();
+    const userId = getUserId(req);
     const collectionId = parseInt(req.body.collection_id || req.query.collection_id, 10);
     if (!collectionId) return res.status(400).json({ success: false, message: '缺少 collection_id' });
+    const collection = await getOwnedCollection(db, collectionId, userId);
+    if (!collection) return res.status(404).json({ success: false, message: '未找到集合' });
     const files = req.files || [];
     if (!files.length) return res.status(400).json({ success: false, message: '未收到文件' });
 
@@ -283,9 +311,12 @@ router.post('/documents/upload', upload.array('files'), async (req, res) => {
 router.post('/documents/paste', async (req, res) => {
   try {
     const db = getDatabase();
+    const userId = getUserId(req);
     const { collection_id, text, filename } = req.body || {};
     const collectionId = parseInt(collection_id, 10);
     if (!collectionId || !text) return res.status(400).json({ success: false, message: '缺少 collection_id 或 text' });
+    const collection = await getOwnedCollection(db, collectionId, userId);
+    if (!collection) return res.status(404).json({ success: false, message: '未找到集合' });
     const safeName = decodeFilename(filename || `pasted-${Date.now()}.txt`);
     const size = Buffer.byteLength(text, 'utf8');
     const sha = crypto.createHash('sha256').update(text).digest('hex');
@@ -313,13 +344,15 @@ router.post('/documents/paste', async (req, res) => {
 // 入库：切分 → 嵌入 → 写入 chunks/embeddings/fts
 router.post('/documents/:docId/ingest', async (req, res) => {
   const db = getDatabase();
+  const userId = getUserId(req);
   const docId = parseInt(req.params.docId, 10);
   if (!docId) return res.status(400).json({ success: false, message: '缺少 docId' });
   try {
+    const ownedDoc = await getOwnedDocument(db, docId, userId);
+    if (!ownedDoc) return res.status(404).json({ success: false, message: '文档不存在' });
+
     await new Promise((resolve) => db.run('UPDATE kb_documents SET status=?, progress=10, error=NULL WHERE id=?', ['processing', docId], () => resolve()));
-    const doc = await new Promise((resolve, reject) => {
-      db.get('SELECT * FROM kb_documents WHERE id=?', [docId], (err, row) => (err ? reject(err) : resolve(row)));
-    });
+    const doc = await dbGet(db, 'SELECT * FROM kb_documents WHERE id=?', [docId]);
     if (!doc) return res.status(404).json({ success: false, message: '文档不存在' });
 
     // 取原文（idx=-1）
@@ -421,8 +454,13 @@ router.post('/documents/:docId/ingest', async (req, res) => {
 // 文档详情（状态/进度）
 router.get('/documents/:docId', (req, res) => {
   const db = getDatabase();
+  const userId = getUserId(req);
   const docId = parseInt(req.params.docId, 10);
-  db.get('SELECT id as docId, filename, status, progress, error, created_at FROM kb_documents WHERE id=?', [docId], (err, row) => {
+  const sql = `SELECT d.id as docId, d.filename, d.status, d.progress, d.error, d.created_at
+               FROM kb_documents d
+               JOIN kb_collections c ON d.collection_id = c.id
+               WHERE d.id=? AND c.user_id=?`;
+  db.get(sql, [docId, userId], (err, row) => {
     if (err) return res.status(500).json({ success: false, message: err.message });
     if (!row) return res.status(404).json({ success: false, message: '未找到文档' });
     res.json({ success: true, item: row });
@@ -448,9 +486,14 @@ router.delete('/documents/:docId', (req, res) => {
 // 搜索调试：混合检索 + 重排（仅返回片段，不调用大模型）
 router.post('/search', async (req, res) => {
   try {
+    const db = getDatabase();
+    const userId = getUserId(req);
     const { collection_id, query, top_k = 10 } = req.body || {};
     if (!collection_id || !query) return res.status(400).json({ success: false, message: '缺少 collection_id 或 query' });
-    const hybrid = await hybridSearch({ collectionId: parseInt(collection_id, 10), query, topK: 50 });
+    const collectionId = parseInt(collection_id, 10);
+    const collection = await getOwnedCollection(db, collectionId, userId);
+    if (!collection) return res.status(404).json({ success: false, message: '未找到集合' });
+    const hybrid = await hybridSearch({ collectionId, query, topK: 50 });
     const RERANK_INPUT_MAX = 10;
     const candidates = hybrid.slice(0, RERANK_INPUT_MAX);
     const docs = candidates.map((h) => h.content);
@@ -477,7 +520,6 @@ router.post('/search', async (req, res) => {
     const docNames = await new Promise((resolve, reject) => {
       if (!docIds.length) return resolve({});
       const placeholders = docIds.map(() => '?').join(',');
-      const db = getDatabase();
       db.all(`SELECT id, filename FROM kb_documents WHERE id IN (${placeholders})`, docIds, (err, rows) => {
         if (err) return reject(err);
         const map = {};
@@ -505,16 +547,18 @@ router.post('/search', async (req, res) => {
 // 获取单个chunk详情（用于引用卡片展开）
 router.get('/chunks/:chunkId', (req, res) => {
   const db = getDatabase();
+  const userId = getUserId(req);
   const chunkId = parseInt(req.params.chunkId, 10);
   if (!chunkId) return res.status(400).json({ success: false, message: '缺少 chunkId' });
-  
+
   const sql = `SELECT c.id as chunkId, c.doc_id as docId, c.idx, c.content, c.tokens,
                       d.filename as docName, d.ext, d.mime
                FROM kb_chunks c
-               LEFT JOIN kb_documents d ON c.doc_id = d.id
-               WHERE c.id = ?`;
-  
-  db.get(sql, [chunkId], (err, row) => {
+               JOIN kb_documents d ON c.doc_id = d.id
+               JOIN kb_collections col ON d.collection_id = col.id
+               WHERE c.id = ? AND col.user_id = ?`;
+
+  db.get(sql, [chunkId, userId], (err, row) => {
     if (err) return res.status(500).json({ success: false, message: err.message });
     if (!row) return res.status(404).json({ success: false, message: '未找到chunk' });
     
