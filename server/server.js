@@ -152,6 +152,7 @@ const allowedOrigins = [
   "https://chat-studio-pzh.vercel.app", // 主要 Vercel 域名
   "https://chat-studio-zihao17s-projects.vercel.app", // 可能的其他 Vercel 域名
   "https://chat-studio.zeabur.app", // Zeabur 部署域名
+  "http://8.130.174.186", // 阿里云服务器 IP
 ];
 
 // 如果设置了 FRONTEND_URL 环境变量，添加到允许列表
@@ -180,6 +181,13 @@ app.use(
       // 允许所有 Vercel 域名（*.vercel.app）
       if (origin.endsWith(".vercel.app")) {
         console.log(`🌐 允许 Vercel 域名: ${origin}`);
+        return callback(null, true);
+      }
+
+      // 允许纯 IP 地址访问（自部署服务器场景，如 http://x.x.x.x 或 http://x.x.x.x:port）
+      const ipOriginPattern = /^https?:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/;
+      if (ipOriginPattern.test(origin)) {
+        console.log(`🌐 允许 IP 地址访问: ${origin}`);
         return callback(null, true);
       }
 
