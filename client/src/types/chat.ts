@@ -112,8 +112,27 @@ export const DEFAULT_SYSTEM_PROMPT_PLACEHOLDER =
   "你是 Chat Studio 的 AI 助手。请以清晰、简洁且结构化的方式作答，必要时使用项目符号或表格帮助理解。避免编造信息。";
 
 // 生成唯一ID的工具函数
+// 兼容 HTTP（非安全上下文）：crypto.randomUUID 仅在 HTTPS/localhost 下可用
 export const generateId = (): string => {
-  return crypto.randomUUID();
+  // 优先使用标准 API
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // 回退：使用 crypto.getRandomValues 手动构造 UUID v4
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  // 最终回退：Math.random（HTTP 非安全环境兜底）
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 };
 
 // 生成消息ID的工具函数

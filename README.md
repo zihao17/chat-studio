@@ -7,12 +7,12 @@
   </p>
   
   <!-- 在线体验 -->
-[![Live Demo](https://img.shields.io/badge/✨_在线体验-Chat_Studio-007ACC?style=flat&logo=vercel)](https://chat-studio-pzh.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/✨_在线体验-Chat_Studio-007ACC?style=flat&logo=vercel)](http://8.130.174.186/)
 
   <p>
     <strong>👉 在线体验：</strong>
-    <a href="https://chat-studio-pzh.vercel.app/" target="_blank">
-      <code>https://chat-studio-pzh.vercel.app/</code>
+    <a href="http://8.130.174.186/" target="_blank">
+      <code>http://8.130.174.186/</code>
     </a>
     <br>
   </p>
