@@ -108,11 +108,14 @@ router.post('/register', async (req, res) => {
             { expiresIn: JWT_EXPIRES_IN }
           );
 
-          // 设置 HttpOnly Cookie（生产环境 SameSite=None; Secure 以适配代理/跨站场景）
+          // 判断是否强制使用 HTTPS 安全 Cookie（如果不设置，根据 isProduction 判断；如果是 HTTP 环境必须传 false）
+          const isSecure = process.env.COOKIE_SECURE === 'true' || (isProduction && process.env.COOKIE_SECURE !== 'false');
+
+          // 设置 HttpOnly Cookie
           res.cookie('auth_token', token, {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
+            secure: isSecure,
+            sameSite: isSecure ? 'none' : 'lax',
             path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7天
           });
@@ -197,11 +200,14 @@ router.post('/login', (req, res) => {
           { expiresIn: JWT_EXPIRES_IN }
         );
 
-        // 设置 HttpOnly Cookie（生产环境 SameSite=None; Secure 以适配代理/跨站场景）
+        // 判断是否强制使用 HTTPS 安全 Cookie
+        const isSecure = process.env.COOKIE_SECURE === 'true' || (isProduction && process.env.COOKIE_SECURE !== 'false');
+
+        // 设置 HttpOnly Cookie
         res.cookie('auth_token', token, {
           httpOnly: true,
-          secure: isProduction,
-          sameSite: isProduction ? 'none' : 'lax',
+          secure: isSecure,
+          sameSite: isSecure ? 'none' : 'lax',
           path: '/',
           maxAge: 7 * 24 * 60 * 60 * 1000 // 7天
         });
@@ -238,11 +244,13 @@ router.post('/login', (req, res) => {
  */
 router.post('/logout', (req, res) => {
   try {
+    const isSecure = process.env.COOKIE_SECURE === 'true' || (isProduction && process.env.COOKIE_SECURE !== 'false');
+    
     // 清除 Cookie（参数需与设置时保持一致）
     res.clearCookie('auth_token', {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
+      secure: isSecure,
+      sameSite: isSecure ? 'none' : 'lax',
       path: '/',
     });
 
