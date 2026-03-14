@@ -38,6 +38,10 @@ export const useChatSessions = () => {
   // RAG：知识库开关与当前集合
   const [kbEnabled, setKbEnabled] = useState<boolean>(false);
   const [kbCollectionId, setKbCollectionId] = useState<number | undefined>(undefined);
+  const kbEnabledRef = useRef(kbEnabled);
+  const kbCollectionIdRef = useRef(kbCollectionId);
+  useEffect(() => { kbEnabledRef.current = kbEnabled; }, [kbEnabled]);
+  useEffect(() => { kbCollectionIdRef.current = kbCollectionId; }, [kbCollectionId]);
   // 存储每个会话的AbortController，用于中断流式响应
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // 标记是否已经进行过登录后的数据同步
@@ -590,8 +594,8 @@ export const useChatSessions = () => {
             top_p: topPRef.current,
             abortController,
             user_system_prompt: systemPromptRef.current,
-            kb_enabled: kbEnabled,
-            kb_collection_id: kbCollectionId,
+            kb_enabled: kbEnabledRef.current,
+            kb_collection_id: kbCollectionIdRef.current,
             kb_top_k: 6,
           }
         );
